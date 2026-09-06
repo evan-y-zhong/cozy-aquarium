@@ -13,19 +13,87 @@ type Fish = {
   kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly';
   phase: number;
   temperament: 'shy' | 'curious' | 'calm';
+  name: string;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
 
+type Level = {
+  id: 'freshwater' | 'saltwater' | 'kelp' | 'deepsea';
+  name: string;
+  moment: string;
+  note: string;
+  colors: [string, string, string];
+  floor: string;
+  growth: string;
+  species: Array<{ kind: Fish['kind']; name: string; color: string; accent: string }>;
+};
+
 const WORLD = { width: 2800, height: 1050 };
-const SPECIES = {
-  tang: 'Blue tang',
-  clown: 'Clownfish',
-  butterfly: 'Butterflyfish',
-  puffer: 'Honey puffer',
-  ray: 'Reef ray',
-  jelly: 'Moon jelly',
-} as const;
+const LEVELS: Level[] = [
+  {
+    id: 'freshwater',
+    name: 'Lilypond Gallery',
+    moment: 'Morning',
+    note: 'Clear the soft moss from the river stones.',
+    colors: ['#79c6b5', '#3c9c91', '#276d72'],
+    floor: '#577b68',
+    growth: '76, 117, 69',
+    species: [
+      { kind: 'butterfly', name: 'Neon tetra', color: '#7fd3cd', accent: '#db6f70' },
+      { kind: 'puffer', name: 'Golden gourami', color: '#e9bd62', accent: '#fff0b4' },
+      { kind: 'tang', name: 'Blue discus', color: '#5a9dae', accent: '#dce9a6' },
+      { kind: 'jelly', name: 'Glass catfish', color: '#dcefea', accent: '#aacfc9' },
+    ],
+  },
+  {
+    id: 'saltwater',
+    name: 'Sunlit Reef',
+    moment: 'Noon',
+    note: 'Brush the coral shelves until they glow.',
+    colors: ['#53b8bd', '#247f8b', '#145567'],
+    floor: '#326d75',
+    growth: '70, 119, 76',
+    species: [
+      { kind: 'clown', name: 'Clownfish', color: '#ef8b62', accent: '#fff0ae' },
+      { kind: 'tang', name: 'Blue tang', color: '#4f91be', accent: '#f2cf57' },
+      { kind: 'butterfly', name: 'Butterflyfish', color: '#f3cf69', accent: '#315b83' },
+      { kind: 'puffer', name: 'Honey puffer', color: '#d9b85c', accent: '#fff0ae' },
+      { kind: 'ray', name: 'Reef ray', color: '#557e83', accent: '#d8e4d4' },
+    ],
+  },
+  {
+    id: 'kelp',
+    name: 'Kelp Forest',
+    moment: 'Golden Hour',
+    note: 'Tidy the old stones beneath the swaying canopy.',
+    colors: ['#5d9e87', '#2e746b', '#173f4c'],
+    floor: '#3e5e4c',
+    growth: '102, 124, 65',
+    species: [
+      { kind: 'puffer', name: 'Garibaldi', color: '#ed9b4a', accent: '#f7c56a' },
+      { kind: 'butterfly', name: 'Copper rockfish', color: '#b96d4f', accent: '#e2ba78' },
+      { kind: 'ray', name: 'Leopard shark', color: '#74877e', accent: '#d4dece' },
+      { kind: 'jelly', name: 'Sea nettle', color: '#e0c6b4', accent: '#f0dba4' },
+    ],
+  },
+  {
+    id: 'deepsea',
+    name: 'Midnight Trench',
+    moment: 'Quiet Watch',
+    note: 'Polish the mineral glass under the glowing shoals.',
+    colors: ['#152e49', '#10213d', '#090f28'],
+    floor: '#18263b',
+    growth: '53, 104, 105',
+    species: [
+      { kind: 'tang', name: 'Lanternfish', color: '#315474', accent: '#8de4c3' },
+      { kind: 'butterfly', name: 'Silver hatchetfish', color: '#7e9cab', accent: '#b9f0d9' },
+      { kind: 'jelly', name: 'Ghost jelly', color: '#8a8eda', accent: '#c6bcff' },
+      { kind: 'ray', name: 'Velvet ray', color: '#283657', accent: '#86d9c8' },
+      { kind: 'puffer', name: 'Little angler', color: '#55627a', accent: '#f5d66d' },
+    ],
+  },
+];
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
@@ -205,31 +273,82 @@ function drawDiver(ctx: CanvasRenderingContext2D, x: number, y: number, facing: 
   ctx.restore();
 }
 
-function drawReef(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = '#326d75';
+function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: number) {
+  ctx.fillStyle = level.floor;
   ctx.beginPath();
   ctx.moveTo(0, 900);
   for (let x = 0; x <= WORLD.width; x += 90) {
-    ctx.lineTo(x, 880 + Math.sin(x * 0.009) * 28);
+    ctx.lineTo(x, 880 + Math.sin(x * 0.009 + LEVELS.indexOf(level)) * 28);
   }
   ctx.lineTo(WORLD.width, WORLD.height);
   ctx.lineTo(0, WORLD.height);
   ctx.fill();
 
-  for (let x = 80; x < WORLD.width; x += 190) {
-    const h = 70 + ((x * 17) % 100);
-    ctx.strokeStyle = x % 380 ? '#3e8f7e' : '#7fae72';
-    ctx.lineWidth = 13;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x, 910);
-    ctx.bezierCurveTo(x - 25, 860, x + 28, 820, x + Math.sin(x) * 18, 910 - h);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(194, 229, 145, .36)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+  if (level.id === 'freshwater') {
+    for (let x = 120; x < WORLD.width; x += 270) {
+      ctx.fillStyle = '#678e65';
+      ctx.beginPath();
+      ctx.ellipse(x, 855, 70, 18, -0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#80a975';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(x, 890);
+      ctx.quadraticCurveTo(x - 18, 825, x + 4, 770 - (x % 80));
+      ctx.stroke();
+    }
+    for (let x = 250; x < WORLD.width; x += 430) {
+      ctx.fillStyle = '#789182';
+      ctx.beginPath();
+      ctx.ellipse(x, 900, 58, 26, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (level.id === 'kelp') {
+    for (let x = 55; x < WORLD.width; x += 105) {
+      const h = 260 + ((x * 13) % 330);
+      const sway = Math.sin(time * 0.0007 + x) * 32;
+      ctx.strokeStyle = x % 210 ? '#597b48' : '#719253';
+      ctx.lineWidth = 18;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, 920);
+      ctx.bezierCurveTo(x - 40, 780, x + sway + 30, 650, x + sway, 920 - h);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(152, 174, 87, .58)';
+      ctx.beginPath();
+      ctx.ellipse(x + sway - 10, 940 - h, 34, 14, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (level.id === 'deepsea') {
+    for (let x = 160; x < WORLD.width; x += 340) {
+      ctx.fillStyle = x % 680 ? '#23344b' : '#2d3c54';
+      ctx.beginPath();
+      ctx.moveTo(x - 90, 900);
+      ctx.lineTo(x - 18, 760 - (x % 90));
+      ctx.lineTo(x + 75, 900);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(112, 230, 195, .54)';
+      ctx.beginPath();
+      ctx.arc(x - 10, 835, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    for (let x = 80; x < WORLD.width; x += 190) {
+      const h = 70 + ((x * 17) % 100);
+      ctx.strokeStyle = x % 380 ? '#3e8f7e' : '#7fae72';
+      ctx.lineWidth = 13;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, 910);
+      ctx.bezierCurveTo(x - 25, 860, x + 28, 820, x + Math.sin(x) * 18, 910 - h);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(194, 229, 145, .36)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
 
+  if (level.id !== 'saltwater') return;
   const coral = [
     [310, 900, '#f18b78'], [740, 910, '#e6a96f'], [1230, 895, '#d87882'],
     [1700, 915, '#d799bd'], [2240, 900, '#ef9a75'], [2600, 905, '#ddbb6a'],
@@ -251,13 +370,17 @@ function drawReef(ctx: CanvasRenderingContext2D) {
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const touchInput = useRef({ x: 0, y: 0, cleaning: false });
+  const touchInput = useRef({ x: 0, y: 0, cleaning: false, next: false });
   const audioRef = useRef<{ context: AudioContext; gain: GainNode; timer: number } | null>(null);
+  const [levelIndex, setLevelIndex] = useState(0);
   const [cleaned, setCleaned] = useState(0);
   const [nearAlgae, setNearAlgae] = useState(false);
   const [nearbyCreature, setNearbyCreature] = useState('');
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [soundOn, setSoundOn] = useState(false);
+  const [nextProgress, setNextProgress] = useState(0);
+  const [showLevelIntro, setShowLevelIntro] = useState(true);
+  const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
     touchInput.current.x = x;
@@ -309,19 +432,27 @@ export default function Home() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    setCleaned(0);
+    setNearAlgae(false);
+    setNearbyCreature('');
+    setDiscovered([]);
+    setNextProgress(0);
+    setShowLevelIntro(true);
+    const introTimer = window.setTimeout(() => setShowLevelIntro(false), 2200);
     const player = { x: 470, y: 500, vx: 0, vy: 0, facing: 1 };
     const camera = { x: 0, y: 0 };
     const keys = new Set<string>();
-    const kinds: Fish['kind'][] = ['clown', 'tang', 'butterfly', 'puffer', 'ray', 'jelly'];
+    const species = level.species;
     const fish: Fish[] = Array.from({ length: 27 }, (_, i) => ({
       x: 180 + ((i * 347) % 2450),
       y: 180 + ((i * 137) % 570),
       vx: (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
       vy: 0,
-      size: kinds[i % kinds.length] === 'ray' ? 45 + (i % 3) * 7 : 22 + (i % 5) * 4,
-      color: i % 3 === 0 ? '#ef8b62' : i % 3 === 1 ? '#65b8b0' : '#f3cf69',
-      accent: i % 2 ? '#315b83' : '#fff0ae',
-      kind: kinds[i % kinds.length],
+      size: species[i % species.length].kind === 'ray' ? 45 + (i % 3) * 7 : 22 + (i % 5) * 4,
+      color: species[i % species.length].color,
+      accent: species[i % species.length].accent,
+      kind: species[i % species.length].kind,
+      name: species[i % species.length].name,
       phase: i * 1.7,
       temperament: i % 5 === 0 ? 'curious' : i % 3 === 0 ? 'shy' : 'calm',
     }));
@@ -338,6 +469,8 @@ export default function Home() {
     let lastProgress = -1;
     let lastNear = false;
     let lastCreature = '';
+    let levelHold = 0;
+    let lastLevelHold = -1;
     const seen = new Set<string>();
 
     const resize = () => {
@@ -407,7 +540,7 @@ export default function Home() {
         const distance = Math.hypot(candidate.x - player.x, candidate.y - player.y);
         return distance < best.distance ? { fish: candidate, distance } : best;
       }, { fish: null, distance: Infinity });
-      const creatureName = closestFish.fish && closestFish.distance < 125 ? SPECIES[closestFish.fish.kind] : '';
+      const creatureName = closestFish.fish && closestFish.distance < 125 ? closestFish.fish.name : '';
       if (creatureName && !seen.has(creatureName)) {
         seen.add(creatureName);
         setDiscovered(Array.from(seen));
@@ -429,16 +562,29 @@ export default function Home() {
       if (progress !== lastProgress) { lastProgress = progress; setCleaned(progress); }
       if (isNear !== lastNear) { lastNear = isNear; setNearAlgae(isNear); }
 
+      if (keys.has('x') || touchInput.current.next) {
+        levelHold = Math.min(100, levelHold + 1.4 * dt);
+      } else {
+        levelHold = Math.max(0, levelHold - 2.5 * dt);
+      }
+      const roundedHold = Math.round(levelHold);
+      if (roundedHold !== lastLevelHold) { lastLevelHold = roundedHold; setNextProgress(roundedHold); }
+      if (levelHold >= 100) {
+        active = false;
+        setLevelIndex((current) => (current + 1) % LEVELS.length);
+        return;
+      }
+
       const ocean = ctx.createLinearGradient(0, 0, 0, rect.height);
-      ocean.addColorStop(0, '#53b8bd');
-      ocean.addColorStop(0.48, '#247f8b');
-      ocean.addColorStop(1, '#145567');
+      ocean.addColorStop(0, level.colors[0]);
+      ocean.addColorStop(0.48, level.colors[1]);
+      ocean.addColorStop(1, level.colors[2]);
       ctx.fillStyle = ocean;
       ctx.fillRect(0, 0, rect.width, rect.height);
 
       ctx.save();
       ctx.translate(-camera.x, -camera.y);
-      for (let i = 0; i < 9; i += 1) {
+      for (let i = 0; i < (level.id === 'deepsea' ? 0 : 9); i += 1) {
         ctx.fillStyle = `rgba(225, 255, 245, ${0.07 + (i % 2) * 0.025})`;
         ctx.beginPath();
         ctx.moveTo(i * 390 - 180, 0);
@@ -448,7 +594,7 @@ export default function Home() {
         ctx.fill();
       }
 
-      ctx.fillStyle = 'rgba(218, 249, 234, .34)';
+      ctx.fillStyle = level.id === 'deepsea' ? 'rgba(117, 241, 210, .48)' : 'rgba(218, 249, 234, .34)';
       for (let i = 0; i < 70; i += 1) {
         const bx = (i * 173 + time * (0.009 + (i % 3) * 0.004)) % WORLD.width;
         const by = 70 + ((i * 113 - time * 0.016) % 760 + 760) % 760;
@@ -457,10 +603,10 @@ export default function Home() {
         ctx.fill();
       }
 
-      drawReef(ctx);
+      drawEnvironment(ctx, level, time);
       algae.forEach((patch) => {
         if (patch.amount <= 0.01) return;
-        ctx.fillStyle = `rgba(70, 119, 76, ${0.13 + patch.amount * 0.42})`;
+        ctx.fillStyle = `rgba(${level.growth}, ${0.13 + patch.amount * 0.42})`;
         for (let i = 0; i < 7; i += 1) {
           const angle = i * 2.4;
           ctx.beginPath();
@@ -491,8 +637,9 @@ export default function Home() {
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      window.clearTimeout(introTimer);
     };
-  }, []);
+  }, [level]);
 
   useEffect(() => () => {
     if (!audioRef.current) return;
@@ -508,23 +655,27 @@ export default function Home() {
           <span className="brand-mark" aria-hidden="true">○</span>
           <div><h1>Drift &amp; Dapple</h1><p>aquarium care</p></div>
         </div>
-        <div className="tank-label"><span /> Sunlit Reef · Morning</div>
+        <div className="tank-label"><span /> {level.name} · {level.moment}</div>
         <button className={`sound-button ${soundOn ? 'active' : ''}`} type="button" onClick={toggleSound} aria-label={soundOn ? 'Turn ambient sound off' : 'Turn ambient sound on'}>{soundOn ? '♫' : '♪'}</button>
       </header>
 
       <aside className="care-card" aria-live="polite">
         <div className="care-row"><span>Tank care</span><strong>{cleaned}%</strong></div>
         <div className="progress-track"><span style={{ width: `${cleaned}%` }} /></div>
-        <p>{cleaned >= 100 ? 'The reef feels fresh and bright.' : 'Take your time. The fish don’t mind.'}</p>
+        <p>{cleaned >= 100 ? 'This habitat feels fresh and bright.' : level.note}</p>
       </aside>
 
       <aside className="field-card" aria-live="polite">
         <span className="eyebrow">Field notes</span>
-        <strong>{discovered.length}<small> / 6 friends met</small></strong>
-        <div className="species-dots" aria-label={`${discovered.length} of 6 species discovered`}>
-          {Object.values(SPECIES).map((name) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
+        <strong>{discovered.length}<small> / {level.species.length} friends met</small></strong>
+        <div className="species-dots" aria-label={`${discovered.length} of ${level.species.length} species discovered`}>
+          {level.species.map(({ name }) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
         </div>
       </aside>
+
+      <nav className="level-map" aria-label="Aquarium journey">
+        {LEVELS.map((item, index) => <span key={item.id} className={index === levelIndex ? 'current' : index < levelIndex ? 'visited' : ''} title={item.name} />)}
+      </nav>
 
       <div className={`creature-label ${nearbyCreature ? 'visible' : ''}`}>
         <span>new friend nearby</span><strong>{nearbyCreature}</strong>
@@ -537,7 +688,12 @@ export default function Home() {
       <div className="controls-card">
         <span><kbd>WASD</kbd> or <kbd>↑ ↓ ← →</kbd> to swim</span>
         <i />
-        <span>Find the soft green algae</span>
+        <span><kbd>Space</kbd> to brush</span>
+      </div>
+
+      <div className={`next-card ${nextProgress > 0 ? 'holding' : ''}`}>
+        <div className="next-copy"><kbd>X</kbd><span><small>hold to travel</small>{LEVELS[(levelIndex + 1) % LEVELS.length].name}</span></div>
+        <div className="next-track"><span style={{ width: `${nextProgress}%` }} /></div>
       </div>
 
       <div className="touch-controls" aria-label="Touch controls">
@@ -547,12 +703,22 @@ export default function Home() {
           <button type="button" aria-label="Swim down" onPointerDown={() => setTouchDirection(0, 1)} onPointerUp={() => setTouchDirection(0, 0)} onPointerCancel={() => setTouchDirection(0, 0)}>↓</button>
           <button type="button" aria-label="Swim right" onPointerDown={() => setTouchDirection(1, 0)} onPointerUp={() => setTouchDirection(0, 0)} onPointerCancel={() => setTouchDirection(0, 0)}>→</button>
         </div>
-        <button className="brush-button" type="button" aria-label="Gently brush algae" onPointerDown={() => { touchInput.current.cleaning = true; }} onPointerUp={() => { touchInput.current.cleaning = false; }} onPointerCancel={() => { touchInput.current.cleaning = false; }}>brush</button>
+        <div className="touch-actions">
+          <button className="next-button" type="button" aria-label="Hold to travel to the next aquarium" onPointerDown={() => { touchInput.current.next = true; }} onPointerUp={() => { touchInput.current.next = false; }} onPointerCancel={() => { touchInput.current.next = false; }}>next</button>
+          <button className="brush-button" type="button" aria-label="Gently brush algae" onPointerDown={() => { touchInput.current.cleaning = true; }} onPointerUp={() => { touchInput.current.cleaning = false; }} onPointerCancel={() => { touchInput.current.cleaning = false; }}>brush</button>
+        </div>
       </div>
 
       <div className={`completion-card ${cleaned >= 100 ? 'visible' : ''}`} role="status">
-        <span>✦</span><div><strong>The reef is glowing</strong><p>Stay awhile. There’s nowhere else you need to be.</p></div>
+        <span>✦</span><div><strong>{level.name} is glowing</strong><p>Stay awhile, or hold X when you feel ready to wander on.</p></div>
       </div>
+
+      <div className={`level-intro ${showLevelIntro ? 'visible' : ''}`} aria-live="polite">
+        <span>Habitat {levelIndex + 1} of {LEVELS.length}</span>
+        <strong>{level.name}</strong>
+        <p>{level.moment}</p>
+      </div>
+      <div className="transition-wash" style={{ opacity: nextProgress / 100 }} />
     </main>
   );
 }
