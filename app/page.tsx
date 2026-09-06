@@ -10,7 +10,7 @@ type Fish = {
   size: number;
   color: string;
   accent: string;
-  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly';
+  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi';
   phase: number;
   temperament: 'shy' | 'curious' | 'calm';
   name: string;
@@ -26,7 +26,7 @@ type Level = {
   colors: [string, string, string];
   floor: string;
   growth: string;
-  species: Array<{ kind: Fish['kind']; name: string; color: string; accent: string }>;
+  species: Array<{ kind: Fish['kind']; name: string; color: string; accent: string; scale?: number }>;
 };
 
 const WORLD = { width: 2800, height: 1050 };
@@ -42,8 +42,13 @@ const LEVELS: Level[] = [
     species: [
       { kind: 'butterfly', name: 'Neon tetra', color: '#7fd3cd', accent: '#db6f70' },
       { kind: 'puffer', name: 'Golden gourami', color: '#e9bd62', accent: '#fff0b4' },
-      { kind: 'tang', name: 'Blue discus', color: '#5a9dae', accent: '#dce9a6' },
-      { kind: 'jelly', name: 'Glass catfish', color: '#dcefea', accent: '#aacfc9' },
+      { kind: 'angelfish', name: 'Blue discus', color: '#5a9dae', accent: '#dce9a6', scale: 1.15 },
+      { kind: 'tang', name: 'Glass catfish', color: '#b9d9d2', accent: '#e5f2e8' },
+      { kind: 'koi', name: 'Kohaku koi', color: '#fff0d3', accent: '#e47759', scale: 1.3 },
+      { kind: 'angelfish', name: 'Marble angelfish', color: '#dfdbbd', accent: '#66736e' },
+      { kind: 'tang', name: 'Peppered cory', color: '#9b9880', accent: '#d6cba4' },
+      { kind: 'clown', name: 'Fancy guppy', color: '#d97988', accent: '#75b4ae' },
+      { kind: 'butterfly', name: 'Boesemani rainbowfish', color: '#6fa8b9', accent: '#e5a65b' },
     ],
   },
   {
@@ -60,6 +65,11 @@ const LEVELS: Level[] = [
       { kind: 'butterfly', name: 'Butterflyfish', color: '#f3cf69', accent: '#315b83' },
       { kind: 'puffer', name: 'Honey puffer', color: '#d9b85c', accent: '#fff0ae' },
       { kind: 'ray', name: 'Reef ray', color: '#557e83', accent: '#d8e4d4' },
+      { kind: 'seahorse', name: 'Lined seahorse', color: '#d9aa62', accent: '#f3dc9a' },
+      { kind: 'angelfish', name: 'Moorish idol', color: '#f1e4bd', accent: '#273f51' },
+      { kind: 'eel', name: 'Green moray', color: '#6c8b68', accent: '#c4c887', scale: 1.25 },
+      { kind: 'shark', name: 'Whitetip reef shark', color: '#7896a0', accent: '#e0e8df', scale: 1.35 },
+      { kind: 'koi', name: 'Cleaner wrasse', color: '#547eb8', accent: '#72d7c5' },
     ],
   },
   {
@@ -75,6 +85,11 @@ const LEVELS: Level[] = [
       { kind: 'butterfly', name: 'Copper rockfish', color: '#b96d4f', accent: '#e2ba78' },
       { kind: 'ray', name: 'Leopard shark', color: '#74877e', accent: '#d4dece' },
       { kind: 'jelly', name: 'Sea nettle', color: '#e0c6b4', accent: '#f0dba4' },
+      { kind: 'tang', name: 'Kelp bass', color: '#6f7860', accent: '#b6a36a' },
+      { kind: 'angelfish', name: 'Giant sea bass', color: '#66726f', accent: '#9da798', scale: 1.45 },
+      { kind: 'eel', name: 'Wolf eel', color: '#697367', accent: '#a9af8e', scale: 1.25 },
+      { kind: 'butterfly', name: 'Northern anchovy', color: '#9bb7b4', accent: '#d6e6d1' },
+      { kind: 'koi', name: 'California sheephead', color: '#b66f69', accent: '#303f48', scale: 1.15 },
     ],
   },
   {
@@ -86,11 +101,16 @@ const LEVELS: Level[] = [
     floor: '#18263b',
     growth: '53, 104, 105',
     species: [
-      { kind: 'tang', name: 'Lanternfish', color: '#315474', accent: '#8de4c3' },
+      { kind: 'angler', name: 'Lanternfish', color: '#315474', accent: '#8de4c3' },
       { kind: 'butterfly', name: 'Silver hatchetfish', color: '#7e9cab', accent: '#b9f0d9' },
       { kind: 'jelly', name: 'Ghost jelly', color: '#8a8eda', accent: '#c6bcff' },
       { kind: 'ray', name: 'Velvet ray', color: '#283657', accent: '#86d9c8' },
-      { kind: 'puffer', name: 'Little angler', color: '#55627a', accent: '#f5d66d' },
+      { kind: 'angler', name: 'Little angler', color: '#55627a', accent: '#f5d66d' },
+      { kind: 'eel', name: 'Gulper eel', color: '#2f3852', accent: '#8ad8cf', scale: 1.4 },
+      { kind: 'shark', name: 'Ghost shark', color: '#566a83', accent: '#bddad4', scale: 1.3 },
+      { kind: 'tang', name: 'Pacific viperfish', color: '#435b70', accent: '#c5e9b7' },
+      { kind: 'angelfish', name: 'Telescopefish', color: '#4c506d', accent: '#d190b4' },
+      { kind: 'eel', name: 'Silver oarfish', color: '#a7b7c7', accent: '#d86575', scale: 1.65 },
     ],
   },
 ];
@@ -135,21 +155,153 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   }
 
   if (fish.kind === 'ray') {
-    ctx.fillStyle = '#557e83';
+    ctx.fillStyle = fish.color;
     ctx.beginPath();
     ctx.moveTo(fish.size * 0.74, 0);
     ctx.quadraticCurveTo(0, -fish.size * 0.58, -fish.size * 0.82, 0);
     ctx.quadraticCurveTo(0, fish.size * 0.58, fish.size * 0.74, 0);
     ctx.fill();
-    ctx.strokeStyle = '#557e83';
+    ctx.strokeStyle = fish.color;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(-fish.size * 0.7, 0);
     ctx.quadraticCurveTo(-fish.size * 1.2, fish.size * 0.15, -fish.size * 1.55, fish.size * 0.05);
     ctx.stroke();
-    ctx.fillStyle = '#d8e4d4';
+    ctx.fillStyle = fish.accent;
     ctx.beginPath();
     ctx.arc(fish.size * 0.35, -fish.size * 0.08, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'eel') {
+    ctx.strokeStyle = 'rgba(4, 30, 40, .16)';
+    ctx.lineWidth = fish.size * 0.46;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 1.3, 8);
+    ctx.bezierCurveTo(-fish.size * 0.7, -fish.size * 0.45, fish.size * 0.2, fish.size * 0.44, fish.size * 0.95, 7);
+    ctx.stroke();
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = fish.size * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 1.3, 0);
+    ctx.bezierCurveTo(-fish.size * 0.7, -fish.size * 0.45, fish.size * 0.2, fish.size * 0.44, fish.size * 0.95, 0);
+    ctx.stroke();
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 1.2, -1);
+    ctx.bezierCurveTo(-fish.size * 0.6, -fish.size * 0.33, fish.size * 0.18, fish.size * 0.3, fish.size * 0.78, -2);
+    ctx.stroke();
+    ctx.fillStyle = '#f6f0d9';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.78, -fish.size * 0.08, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1e3340';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.8, -fish.size * 0.08, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'seahorse') {
+    ctx.scale(0.9, 0.9);
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = fish.size * 0.34;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(4, -fish.size * 0.42);
+    ctx.bezierCurveTo(-fish.size * 0.3, -fish.size * 0.08, fish.size * 0.18, fish.size * 0.22, -fish.size * 0.08, fish.size * 0.52);
+    ctx.bezierCurveTo(-fish.size * 0.28, fish.size * 0.75, -fish.size * 0.5, fish.size * 0.5, -fish.size * 0.27, fish.size * 0.4);
+    ctx.stroke();
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.12, -fish.size * 0.48, fish.size * 0.32, fish.size * 0.23, -0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.32, -fish.size * 0.54);
+    ctx.lineTo(fish.size * 0.72, -fish.size * 0.48);
+    ctx.lineTo(fish.size * 0.31, -fish.size * 0.4);
+    ctx.fill();
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(-4, -fish.size * 0.18 + i * 8);
+      ctx.lineTo(5, -fish.size * 0.2 + i * 8);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#243945';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.24, -fish.size * 0.53, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'shark') {
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 1.05, 0);
+    ctx.bezierCurveTo(fish.size * 0.35, -fish.size * 0.4, -fish.size * 0.7, -fish.size * 0.3, -fish.size * 0.95, 0);
+    ctx.bezierCurveTo(-fish.size * 0.55, fish.size * 0.3, fish.size * 0.45, fish.size * 0.3, fish.size * 1.05, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 0.85, 0);
+    ctx.lineTo(-fish.size * 1.35, -fish.size * 0.5);
+    ctx.lineTo(-fish.size * 1.2, 0);
+    ctx.lineTo(-fish.size * 1.35, fish.size * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 0.1, -fish.size * 0.24);
+    ctx.lineTo(-fish.size * 0.38, -fish.size * 0.7);
+    ctx.lineTo(fish.size * 0.2, -fish.size * 0.25);
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.28, fish.size * 0.13, fish.size * 0.46, fish.size * 0.11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#152d38';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.67, -fish.size * 0.08, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'angelfish') {
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.68, 0);
+    ctx.lineTo(0, -fish.size * 0.76);
+    ctx.lineTo(-fish.size * 0.68, 0);
+    ctx.lineTo(0, fish.size * 0.76);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 0.55, 0);
+    ctx.lineTo(-fish.size * 1.0, -fish.size * 0.4);
+    ctx.lineTo(-fish.size * 0.92, fish.size * 0.48);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = fish.size * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 0.18, -fish.size * 0.59);
+    ctx.lineTo(-fish.size * 0.18, fish.size * 0.58);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.38, -fish.size * 0.12, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#193540';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.4, -fish.size * 0.12, 1.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     return;
@@ -162,7 +314,7 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
 
   ctx.fillStyle = fish.color;
   ctx.beginPath();
-  ctx.ellipse(0, 0, fish.size * (fish.kind === 'puffer' ? 0.58 : 0.72), fish.size * (fish.kind === 'puffer' ? 0.55 : 0.42), 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, fish.size * (fish.kind === 'puffer' || fish.kind === 'angler' ? 0.58 : 0.72), fish.size * (fish.kind === 'puffer' || fish.kind === 'angler' ? 0.55 : 0.42), 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.beginPath();
@@ -181,7 +333,7 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
     ctx.moveTo(fish.size * 0.28, -fish.size * 0.28);
     ctx.lineTo(fish.size * 0.28, fish.size * 0.28);
     ctx.stroke();
-  } else if (fish.kind !== 'puffer') {
+  } else if (fish.kind !== 'puffer' && fish.kind !== 'angler') {
     ctx.fillStyle = fish.accent;
     ctx.beginPath();
     ctx.ellipse(-fish.size * 0.05, 0, fish.size * 0.16, fish.size * 0.39, 0, 0, Math.PI * 2);
@@ -198,6 +350,30 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
       ctx.lineTo(Math.cos(angle) * fish.size * 0.68, Math.sin(angle) * fish.size * 0.63);
       ctx.stroke();
     }
+  }
+
+  if (fish.kind === 'koi') {
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.12, -fish.size * 0.12, fish.size * 0.22, fish.size * 0.18, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(fish.size * 0.27, fish.size * 0.08, fish.size * 0.16, fish.size * 0.14, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (fish.kind === 'angler') {
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.06, -fish.size * 0.42);
+    ctx.quadraticCurveTo(fish.size * 0.35, -fish.size * 0.88, fish.size * 0.62, -fish.size * 0.58);
+    ctx.stroke();
+    ctx.shadowColor = fish.accent;
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.65, -fish.size * 0.57, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
   ctx.fillStyle = '#fff';
@@ -443,12 +619,12 @@ export default function Home() {
     const camera = { x: 0, y: 0 };
     const keys = new Set<string>();
     const species = level.species;
-    const fish: Fish[] = Array.from({ length: 27 }, (_, i) => ({
+    const fish: Fish[] = Array.from({ length: 48 }, (_, i) => ({
       x: 180 + ((i * 347) % 2450),
       y: 180 + ((i * 137) % 570),
       vx: (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
       vy: 0,
-      size: species[i % species.length].kind === 'ray' ? 45 + (i % 3) * 7 : 22 + (i % 5) * 4,
+      size: (['ray', 'shark'].includes(species[i % species.length].kind) ? 42 + (i % 3) * 6 : 20 + (i % 5) * 3.5) * (species[i % species.length].scale ?? 1),
       color: species[i % species.length].color,
       accent: species[i % species.length].accent,
       kind: species[i % species.length].kind,

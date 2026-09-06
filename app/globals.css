@@ -28,7 +28,7 @@ button { font: inherit; }
 .eyebrow { display: block; margin-bottom: 6px; color: rgba(245,249,222,.62); font-size: 8px; font-weight: 650; text-transform: uppercase; letter-spacing: .16em; }
 .field-card strong { display: block; font-family: Georgia, serif; font-size: 21px; font-weight: 500; }
 .field-card small { font-family: var(--font-geist-sans), sans-serif; font-size: 10px; font-weight: 450; opacity: .75; }
-.species-dots { display: flex; gap: 6px; margin-top: 10px; }
+.species-dots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .species-dots i { width: 8px; height: 8px; border: 1px solid rgba(255,255,255,.36); border-radius: 50%; background: rgba(255,255,255,.08); transition: .3s ease; }
 .species-dots i.found { border-color: #f3d979; background: #f3d979; box-shadow: 0 0 9px rgba(255,229,129,.48); }
 .level-map { position: absolute; z-index: 2; top: 109px; left: 50%; display: flex; gap: 7px; transform: translateX(-50%); pointer-events: none; }
