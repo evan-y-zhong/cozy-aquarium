@@ -17,6 +17,7 @@ type Fish = {
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
+type FoodPellet = { x: number; y: number; vx: number; vy: number; life: number };
 
 type Level = {
   id: 'freshwater' | 'mangrove' | 'saltwater' | 'kelp' | 'openocean' | 'polar' | 'deepsea' | 'vents';
@@ -712,7 +713,7 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const touchInput = useRef({ x: 0, y: 0, cleaning: false, next: false });
+  const touchInput = useRef({ x: 0, y: 0, cleaning: false, feeding: false, next: false });
   const audioRef = useRef<{ context: AudioContext; gain: GainNode; timer: number } | null>(null);
   const [levelIndex, setLevelIndex] = useState(0);
   const [cleaned, setCleaned] = useState(0);
@@ -724,6 +725,7 @@ export default function Home() {
   const [showLevelIntro, setShowLevelIntro] = useState(true);
   const [depthMeters, setDepthMeters] = useState(0);
   const [depthZone, setDepthZone] = useState('');
+  const [feeding, setFeeding] = useState(false);
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -784,6 +786,7 @@ export default function Home() {
     setShowLevelIntro(true);
     setDepthMeters(0);
     setDepthZone(level.depthNames[0]);
+    setFeeding(false);
     const introTimer = window.setTimeout(() => setShowLevelIntro(false), 2200);
     const player = { x: 470, y: 280, vx: 0, vy: 0, facing: 1 };
     const camera = { x: 0, y: 0 };
@@ -813,6 +816,7 @@ export default function Home() {
       { x: 1870, y: 2050, size: 64, amount: 1 },
       { x: 2480, y: 2190, size: 70, amount: 1 },
     ];
+    const food: FoodPellet[] = [];
     let frame = 0;
     let last = performance.now();
     let active = true;
@@ -823,6 +827,8 @@ export default function Home() {
     let lastLevelHold = -1;
     let lastDepthMeters = -1;
     let lastDepthZone = '';
+    let feedCooldown = 0;
+    let lastFeeding = false;
     const seen = new Set<string>();
 
     const resize = () => {
@@ -877,6 +883,31 @@ export default function Home() {
       if (currentDepth !== lastDepthMeters) { lastDepthMeters = currentDepth; setDepthMeters(currentDepth); }
       if (currentZone !== lastDepthZone) { lastDepthZone = currentZone; setDepthZone(currentZone); }
 
+      const isFeeding = keys.has('f') || touchInput.current.feeding;
+      feedCooldown -= dt;
+      if (isFeeding && feedCooldown <= 0) {
+        feedCooldown = 24;
+        for (let i = 0; i < 4; i += 1) {
+          food.push({
+            x: player.x + player.facing * (38 + i * 6),
+            y: player.y - 12 + i * 7,
+            vx: player.facing * (0.3 + i * 0.04),
+            vy: 0.08 + i * 0.025,
+            life: 520,
+          });
+        }
+      }
+      if (isFeeding !== lastFeeding) { lastFeeding = isFeeding; setFeeding(isFeeding); }
+      for (let i = food.length - 1; i >= 0; i -= 1) {
+        const pellet = food[i];
+        pellet.vx *= Math.pow(0.985, dt);
+        pellet.vy = Math.min(0.48, pellet.vy + 0.004 * dt);
+        pellet.x += pellet.vx * dt;
+        pellet.y += pellet.vy * dt;
+        pellet.life -= dt;
+        if (pellet.life <= 0 || pellet.y > WORLD.height - 145) food.splice(i, 1);
+      }
+
       fish.forEach((f) => {
         const dx = f.x - player.x;
         const dy = f.y - player.y;
@@ -885,6 +916,18 @@ export default function Home() {
           const reaction = f.temperament === 'curious' ? -0.012 : f.temperament === 'shy' ? 0.045 : 0.02;
           f.vx += (dx / Math.max(distance, 1)) * reaction * dt;
           f.vy += (dy / Math.max(distance, 1)) * reaction * 0.72 * dt;
+        }
+        if (food.length && Math.sin(f.phase * 2.17) > -0.3) {
+          const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number }>((best, pellet) => {
+            const pelletDistance = Math.hypot(pellet.x - f.x, pellet.y - f.y);
+            return pelletDistance < best.distance ? { pellet, distance: pelletDistance } : best;
+          }, { pellet: null, distance: Infinity });
+          if (nearestFood.pellet && nearestFood.distance < 320) {
+            const foodDx = nearestFood.pellet.x - f.x;
+            const foodDy = nearestFood.pellet.y - f.y;
+            f.vx += (foodDx / Math.max(nearestFood.distance, 1)) * 0.009 * dt;
+            f.vy += (foodDy / Math.max(nearestFood.distance, 1)) * 0.007 * dt;
+          }
         }
         f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
         f.vx = Math.max(-0.9, Math.min(0.9, f.vx));
@@ -973,6 +1016,16 @@ export default function Home() {
           ctx.fill();
         }
       });
+      food.forEach((pellet, index) => {
+        const shimmer = 0.72 + Math.sin(time * 0.008 + index) * 0.18;
+        ctx.fillStyle = `rgba(244, 211, 116, ${shimmer})`;
+        ctx.shadowColor = 'rgba(255, 226, 137, .55)';
+        ctx.shadowBlur = 7;
+        ctx.beginPath();
+        ctx.arc(pellet.x, pellet.y, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
       fish.forEach((f) => drawFish(ctx, f, time));
       drawDiver(ctx, player.x, player.y, player.facing, cleaning, time);
 
@@ -1052,10 +1105,17 @@ export default function Home() {
         <kbd>Space</kbd><span>hold to gently brush</span>
       </div>
 
+      <div className={`feed-prompt ${feeding ? 'visible' : ''}`} aria-live="polite">
+        <span className="pellet-mark" aria-hidden="true">•••</span>
+        <span>A few nearby animals are curious</span>
+      </div>
+
       <div className="controls-card">
         <span><kbd>WASD</kbd> or <kbd>↑ ↓ ← →</kbd> to swim</span>
         <i />
         <span><kbd>Space</kbd> to brush</span>
+        <i />
+        <span><kbd>F</kbd> to feed</span>
         <i />
         <span><kbd>↓</kbd> dive deeper</span>
       </div>
@@ -1074,6 +1134,7 @@ export default function Home() {
         </div>
         <div className="touch-actions">
           <button className="next-button" type="button" aria-label="Hold to travel to the next aquarium" onPointerDown={() => { touchInput.current.next = true; }} onPointerUp={() => { touchInput.current.next = false; }} onPointerCancel={() => { touchInput.current.next = false; }}>next</button>
+          <button className="feed-button" type="button" aria-label="Feed nearby animals" onPointerDown={() => { touchInput.current.feeding = true; }} onPointerUp={() => { touchInput.current.feeding = false; }} onPointerCancel={() => { touchInput.current.feeding = false; }}>feed</button>
           <button className="brush-button" type="button" aria-label="Gently brush algae" onPointerDown={() => { touchInput.current.cleaning = true; }} onPointerUp={() => { touchInput.current.cleaning = false; }} onPointerCancel={() => { touchInput.current.cleaning = false; }}>brush</button>
         </div>
       </div>
