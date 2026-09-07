@@ -28,6 +28,7 @@ button { font: inherit; }
 .eyebrow { display: block; margin-bottom: 6px; color: rgba(245,249,222,.62); font-size: 8px; font-weight: 650; text-transform: uppercase; letter-spacing: .16em; }
 .field-card strong { display: block; font-family: Georgia, serif; font-size: 21px; font-weight: 500; }
 .field-card small { font-family: var(--font-geist-sans), sans-serif; font-size: 10px; font-weight: 450; opacity: .75; }
+.field-card p { margin: 5px 0 0; color: rgba(245,249,222,.65); font-size: 10px; }
 .species-dots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .species-dots i { width: 8px; height: 8px; border: 1px solid rgba(255,255,255,.36); border-radius: 50%; background: rgba(255,255,255,.08); transition: .3s ease; }
 .species-dots i.found { border-color: #f3d979; background: #f3d979; box-shadow: 0 0 9px rgba(255,229,129,.48); }
@@ -35,6 +36,15 @@ button { font: inherit; }
 .level-map span { width: 18px; height: 3px; border-radius: 99px; background: rgba(255,255,255,.22); transition: .35s ease; }
 .level-map span.current { width: 32px; background: rgba(255,248,195,.86); box-shadow: 0 0 10px rgba(255,240,159,.3); }
 .level-map span.visited { background: rgba(220,238,193,.5); }
+.depth-card { position: absolute; z-index: 2; top: 225px; right: 28px; display: flex; align-items: stretch; gap: 12px; min-width: 174px; padding: 13px 13px 13px 15px; border: 1px solid rgba(255,255,255,.24); border-radius: 18px; background: rgba(9, 50, 64, .38); color: #fbf7df; backdrop-filter: blur(10px); box-shadow: 0 14px 40px rgba(6,51,61,.12); }
+.depth-copy { flex: 1; }
+.depth-copy > span { display: block; color: rgba(245,249,222,.62); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: .14em; }
+.depth-copy strong { display: block; margin-top: 3px; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+.depth-copy strong small { font-family: var(--font-geist-sans), sans-serif; font-size: 11px; font-weight: 500; opacity: .7; }
+.depth-copy p { width: 105px; margin: 4px 0 0; color: rgba(245,249,222,.7); font-size: 10px; line-height: 1.25; }
+.depth-line { position: relative; width: 3px; min-height: 58px; margin: 2px 4px; border-radius: 9px; background: rgba(255,255,255,.2); }
+.depth-line::after { content: ''; position: absolute; left: -3px; bottom: 0; width: 9px; height: 1px; background: rgba(255,255,255,.35); }
+.depth-line i { position: absolute; left: 50%; width: 9px; height: 9px; transform: translate(-50%, -50%); border: 2px solid #fff7cc; border-radius: 50%; background: #4d8c8d; box-shadow: 0 0 10px rgba(255,244,171,.45); transition: top .2s ease; }
 .creature-label { position: absolute; z-index: 2; top: 118px; left: 50%; opacity: 0; transform: translate(-50%, -5px); text-align: center; color: #fffbe8; text-shadow: 0 2px 10px rgba(4,50,58,.4); transition: .25s ease; pointer-events: none; }
 .creature-label.visible { opacity: 1; transform: translate(-50%, 0); }
 .creature-label span { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: .18em; opacity: .62; }
@@ -80,5 +90,5 @@ kbd { display: inline-grid; min-width: 27px; height: 25px; place-items: center; 
   .next-button { width: 45px; height: 45px; border-radius: 50%; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
   .next-card { display: none; }
 }
-@media (max-width: 640px) { .game-header { height: 76px; padding: 0 17px; grid-template-columns: 1fr auto; } .tank-label { display: none; } .brand h1 { font-size: 18px; } .care-card { top: 82px; left: 14px; width: 184px; padding: 13px 14px; } .field-card { top: 82px; right: 14px; width: 139px; padding: 12px 13px; } .level-map { top: 169px; } .creature-label { top: 188px; } .clean-prompt { bottom: 98px; } }
+@media (max-width: 640px) { .game-header { height: 76px; padding: 0 17px; grid-template-columns: 1fr auto; } .tank-label { display: none; } .brand h1 { font-size: 18px; } .care-card { top: 82px; left: 14px; width: 175px; padding: 13px 14px; } .field-card { top: 82px; right: 14px; width: 132px; padding: 12px 13px; } .depth-card { top: 205px; right: 14px; min-width: 132px; padding: 10px 10px 10px 12px; } .depth-copy p { width: 82px; } .level-map { top: 181px; } .creature-label { top: 188px; } .clean-prompt { bottom: 98px; } }
 @media (prefers-reduced-motion: reduce) { .clean-prompt, .progress-track span { transition: none; } }
