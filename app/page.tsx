@@ -15,6 +15,7 @@ type Fish = {
   temperament: 'shy' | 'curious' | 'calm';
   name: string;
   happy: number;
+  biteCooldown: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -828,6 +829,7 @@ export default function Home() {
       phase: i * 1.7,
       temperament: i % 5 === 0 ? 'curious' : i % 3 === 0 ? 'shy' : 'calm',
       happy: 0,
+      biteCooldown: 0,
     }));
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
@@ -936,6 +938,7 @@ export default function Home() {
 
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
+        f.biteCooldown = Math.max(0, f.biteCooldown - dt);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
@@ -944,19 +947,21 @@ export default function Home() {
           f.vx += (dx / Math.max(distance, 1)) * reaction * dt;
           f.vy += (dy / Math.max(distance, 1)) * reaction * 0.72 * dt;
         }
-        if (food.length && Math.sin(f.phase * 2.17) > -0.3) {
+        if (food.length && Math.sin(f.phase * 2.17) > -0.72) {
           const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number; index: number }>((best, pellet, index) => {
             const pelletDistance = Math.hypot(pellet.x - f.x, pellet.y - f.y);
             return pelletDistance < best.distance ? { pellet, distance: pelletDistance, index } : best;
           }, { pellet: null, distance: Infinity, index: -1 });
-          if (nearestFood.pellet && nearestFood.distance < 320) {
+          if (nearestFood.pellet && nearestFood.distance < 560) {
             const foodDx = nearestFood.pellet.x - f.x;
             const foodDy = nearestFood.pellet.y - f.y;
-            f.vx += (foodDx / Math.max(nearestFood.distance, 1)) * 0.009 * dt;
-            f.vy += (foodDy / Math.max(nearestFood.distance, 1)) * 0.007 * dt;
-            if (nearestFood.distance < Math.max(14, f.size * 0.42) && f.happy <= 0) {
+            const appetite = f.temperament === 'curious' ? 1.18 : f.temperament === 'shy' ? 0.78 : 1;
+            f.vx += (foodDx / Math.max(nearestFood.distance, 1)) * 0.013 * appetite * dt;
+            f.vy += (foodDy / Math.max(nearestFood.distance, 1)) * 0.019 * appetite * dt;
+            if (nearestFood.distance < Math.max(14, f.size * 0.42) && f.biteCooldown <= 0) {
               food.splice(nearestFood.index, 1);
               f.happy = 100;
+              f.biteCooldown = 42;
               snackCount += 1;
               setSnacksShared(snackCount);
               setFeedingMessage(`${f.name} enjoyed a bite`);
@@ -966,6 +971,7 @@ export default function Home() {
         }
         f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
         f.vx = Math.max(-0.9, Math.min(0.9, f.vx));
+        f.vy = Math.max(-1.15, Math.min(1.15, f.vy));
         f.vy *= 0.98;
         f.x += f.vx * dt;
         f.y += f.vy * dt;
@@ -1149,7 +1155,7 @@ export default function Home() {
 
       <div className={`feed-prompt ${feeding || feedingMessage ? 'visible' : ''}`} aria-live="polite">
         <span className="pellet-mark" aria-hidden="true">•••</span>
-        <span>{feedingMessage || 'A few nearby animals are curious'}</span>
+        <span>{feedingMessage || 'Nearby animals are following the food'}</span>
       </div>
 
       <div className="controls-card">
