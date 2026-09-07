@@ -14,6 +14,7 @@ type Fish = {
   phase: number;
   temperament: 'shy' | 'curious' | 'calm';
   name: string;
+  happy: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -482,6 +483,24 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   ctx.restore();
 }
 
+function drawHappyReaction(ctx: CanvasRenderingContext2D, fish: Fish) {
+  if (fish.happy <= 0) return;
+  const progress = 1 - fish.happy / 100;
+  const alpha = Math.min(1, fish.happy / 22);
+  ctx.save();
+  ctx.translate(fish.x, fish.y - fish.size * 0.9 - 12 - progress * 22);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#f3d579';
+  ctx.shadowColor = 'rgba(255, 225, 125, .65)';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(0, 7);
+  ctx.bezierCurveTo(-13, -1, -9, -11, 0, -5);
+  ctx.bezierCurveTo(9, -11, 13, -1, 0, 7);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawDiver(ctx: CanvasRenderingContext2D, x: number, y: number, facing: number, cleaning: boolean, time: number) {
   ctx.save();
   ctx.translate(x, y);
@@ -726,6 +745,8 @@ export default function Home() {
   const [depthMeters, setDepthMeters] = useState(0);
   const [depthZone, setDepthZone] = useState('');
   const [feeding, setFeeding] = useState(false);
+  const [feedingMessage, setFeedingMessage] = useState('');
+  const [snacksShared, setSnacksShared] = useState(0);
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -787,6 +808,8 @@ export default function Home() {
     setDepthMeters(0);
     setDepthZone(level.depthNames[0]);
     setFeeding(false);
+    setFeedingMessage('');
+    setSnacksShared(0);
     const introTimer = window.setTimeout(() => setShowLevelIntro(false), 2200);
     const player = { x: 470, y: 280, vx: 0, vy: 0, facing: 1 };
     const camera = { x: 0, y: 0 };
@@ -804,6 +827,7 @@ export default function Home() {
       name: species[i % species.length].name,
       phase: i * 1.7,
       temperament: i % 5 === 0 ? 'curious' : i % 3 === 0 ? 'shy' : 'calm',
+      happy: 0,
     }));
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
@@ -829,6 +853,8 @@ export default function Home() {
     let lastDepthZone = '';
     let feedCooldown = 0;
     let lastFeeding = false;
+    let feedNotice = 0;
+    let snackCount = 0;
     const seen = new Set<string>();
 
     const resize = () => {
@@ -909,6 +935,7 @@ export default function Home() {
       }
 
       fish.forEach((f) => {
+        f.happy = Math.max(0, f.happy - dt);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
@@ -918,15 +945,23 @@ export default function Home() {
           f.vy += (dy / Math.max(distance, 1)) * reaction * 0.72 * dt;
         }
         if (food.length && Math.sin(f.phase * 2.17) > -0.3) {
-          const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number }>((best, pellet) => {
+          const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number; index: number }>((best, pellet, index) => {
             const pelletDistance = Math.hypot(pellet.x - f.x, pellet.y - f.y);
-            return pelletDistance < best.distance ? { pellet, distance: pelletDistance } : best;
-          }, { pellet: null, distance: Infinity });
+            return pelletDistance < best.distance ? { pellet, distance: pelletDistance, index } : best;
+          }, { pellet: null, distance: Infinity, index: -1 });
           if (nearestFood.pellet && nearestFood.distance < 320) {
             const foodDx = nearestFood.pellet.x - f.x;
             const foodDy = nearestFood.pellet.y - f.y;
             f.vx += (foodDx / Math.max(nearestFood.distance, 1)) * 0.009 * dt;
             f.vy += (foodDy / Math.max(nearestFood.distance, 1)) * 0.007 * dt;
+            if (nearestFood.distance < Math.max(14, f.size * 0.42) && f.happy <= 0) {
+              food.splice(nearestFood.index, 1);
+              f.happy = 100;
+              snackCount += 1;
+              setSnacksShared(snackCount);
+              setFeedingMessage(`${f.name} enjoyed a bite`);
+              feedNotice = 135;
+            }
           }
         }
         f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
@@ -937,6 +972,10 @@ export default function Home() {
         if (f.x < 80 || f.x > WORLD.width - 80) f.vx *= -1;
         if (f.y < 160 || f.y > WORLD.height - 210) f.vy *= -1;
       });
+      if (feedNotice > 0) {
+        feedNotice -= dt;
+        if (feedNotice <= 0) setFeedingMessage('');
+      }
 
       const closestFish = fish.reduce<{ fish: Fish | null; distance: number }>((best, candidate) => {
         const distance = Math.hypot(candidate.x - player.x, candidate.y - player.y);
@@ -1026,7 +1065,10 @@ export default function Home() {
         ctx.fill();
       });
       ctx.shadowBlur = 0;
-      fish.forEach((f) => drawFish(ctx, f, time));
+      fish.forEach((f) => {
+        drawFish(ctx, f, time);
+        drawHappyReaction(ctx, f);
+      });
       drawDiver(ctx, player.x, player.y, player.facing, cleaning, time);
 
       if (cleaning && nearest.patch) {
@@ -1082,7 +1124,7 @@ export default function Home() {
       <aside className="field-card" aria-live="polite">
         <span className="eyebrow">Field notes</span>
         <strong>{discovered.length}<small> / {level.species.length} friends met</small></strong>
-        <p>40 animals · 3 depth zones</p>
+        <p>40 animals · 3 depth zones{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
         <div className="species-dots" aria-label={`${discovered.length} of ${level.species.length} species discovered`}>
           {level.species.map(({ name }) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
         </div>
@@ -1105,9 +1147,9 @@ export default function Home() {
         <kbd>Space</kbd><span>hold to gently brush</span>
       </div>
 
-      <div className={`feed-prompt ${feeding ? 'visible' : ''}`} aria-live="polite">
+      <div className={`feed-prompt ${feeding || feedingMessage ? 'visible' : ''}`} aria-live="polite">
         <span className="pellet-mark" aria-hidden="true">•••</span>
-        <span>A few nearby animals are curious</span>
+        <span>{feedingMessage || 'A few nearby animals are curious'}</span>
       </div>
 
       <div className="controls-card">
