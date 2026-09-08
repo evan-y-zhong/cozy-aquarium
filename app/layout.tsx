@@ -13,20 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://drift-and-dapple.evanyz2010.chatgpt.site'),
   title: 'Drift & Dapple — A Cozy Aquarium Game',
   description: 'Swim gently, care for a living reef, and make friends with the fish.',
   openGraph: {
     title: 'Drift & Dapple',
     description: 'A cozy aquarium care game where you swim alongside friendly fish.',
     type: 'website',
-    images: [{ url: '/og.png', width: 1731, height: 909, alt: 'Drift & Dapple cozy aquarium care game' }],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Drift & Dapple',
     description: 'A cozy aquarium care game where you swim alongside friendly fish.',
-    images: ['/og.png'],
   },
 };
 

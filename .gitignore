@@ -36,3 +36,7 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# local Sites metadata and optional media assets
+/.openai/
+/public/
