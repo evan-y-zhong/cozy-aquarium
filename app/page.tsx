@@ -12,10 +12,11 @@ type Fish = {
   accent: string;
   kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi';
   phase: number;
-  temperament: 'shy' | 'curious' | 'calm';
+  temperament: 'shy' | 'curious' | 'calm' | 'playful' | 'sleepy';
   name: string;
   happy: number;
   biteCooldown: number;
+  followTime: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -32,6 +33,12 @@ type Level = {
   floor: string;
   growth: string;
   species: Array<{ kind: Fish['kind']; name: string; color: string; accent: string; scale?: number }>;
+};
+
+type Landmark = { name: string; note: string; x: number; y: number; radius: number };
+type JournalData = {
+  creatures: Partial<Record<Level['id'], string[]>>;
+  places: Partial<Record<Level['id'], string[]>>;
 };
 
 const WORLD = { width: 2800, height: 2400 };
@@ -211,6 +218,83 @@ const LEVELS: Level[] = [
     ],
   },
 ];
+
+const LANDMARK_NOTES: Record<Level['id'], Array<{ name: string; note: string }>> = {
+  freshwater: [
+    { name: 'Willow-root nook', note: 'A shaded pocket beneath the old roots.' },
+    { name: 'Sunken teacup', note: 'Tiny fish have made a porcelain cup their shelter.' },
+    { name: 'Riverstone arch', note: 'The current hums softly through this mossy doorway.' },
+  ],
+  mangrove: [
+    { name: 'Rootlace tunnel', note: 'A narrow path woven from patient mangrove roots.' },
+    { name: 'Nursery bowl', note: 'Young fish rest here when the tide grows busy.' },
+    { name: 'Seagrass window', note: 'A round opening overlooking the quiet floor.' },
+  ],
+  saltwater: [
+    { name: 'Coral keyhole', note: 'A bright passage hidden behind fan coral.' },
+    { name: 'Shellkeeper grotto', note: 'Empty shells gather here in a perfect little ring.' },
+    { name: 'Lagoon window', note: 'A calm blue view through the oldest reef shelf.' },
+  ],
+  kelp: [
+    { name: 'Green cathedral', note: 'Tall fronds meet overhead like a leafy roof.' },
+    { name: 'Otter-stone circle', note: 'Smooth stones lie where playful visitors once rested.' },
+    { name: 'Holdfast hollow', note: 'A sheltered room beneath the swaying canopy.' },
+  ],
+  openocean: [
+    { name: 'Drifting ribbon', note: 'A long current carries silver bubbles in a spiral.' },
+    { name: 'Blue silence', note: 'A still pocket where the open water seems to pause.' },
+    { name: 'Traveler’s marker', note: 'A lonely stone visited by creatures passing through.' },
+  ],
+  polar: [
+    { name: 'Iceglass alcove', note: 'The ceiling scatters pale blue light like stars.' },
+    { name: 'Silver shelf', note: 'A sheltered ledge beneath an ancient sheet of ice.' },
+    { name: 'Glacial doorway', note: 'A rounded entrance polished smooth by cold currents.' },
+  ],
+  deepsea: [
+    { name: 'Lantern hollow', note: 'Small living lights blink from a hidden hollow.' },
+    { name: 'Whispering drop', note: 'The trench falls away into a deep and gentle hush.' },
+    { name: 'Star-silt cave', note: 'Every movement wakes a cloud of sparkling sediment.' },
+  ],
+  vents: [
+    { name: 'Warmwater pocket', note: 'A quiet refuge warmed by the mineral garden.' },
+    { name: 'Chimney passage', note: 'A secret route between two towering black smokers.' },
+    { name: 'Ember nursery', note: 'Tiny creatures gather around the soft orange glow.' },
+  ],
+};
+
+const LANDMARK_POSITIONS = [
+  { x: 360, y: 760, radius: 112 },
+  { x: 2310, y: 1435, radius: 125 },
+  { x: 760, y: 2110, radius: 120 },
+] as const;
+
+const JOURNAL_KEY = 'drift-and-dapple-field-journal-v1';
+const EMPTY_JOURNAL: JournalData = { creatures: {}, places: {} };
+
+function readJournal(): JournalData {
+  if (typeof window === 'undefined') return EMPTY_JOURNAL;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(JOURNAL_KEY) ?? 'null') as JournalData | null;
+    return saved?.creatures && saved?.places ? saved : EMPTY_JOURNAL;
+  } catch {
+    return EMPTY_JOURNAL;
+  }
+}
+
+function writeJournal(journal: JournalData) {
+  try {
+    window.localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+  } catch {
+    // Exploration still works when storage is unavailable (for example, in private browsing).
+  }
+}
+
+function getLandmarks(level: Level): Landmark[] {
+  return LANDMARK_NOTES[level.id].map((landmark, index) => ({
+    ...landmark,
+    ...LANDMARK_POSITIONS[index],
+  }));
+}
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
@@ -593,6 +677,25 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
     ctx.fill();
   });
 
+  const rockBeds = [
+    { x: 210, y: floorY - 8 }, { x: 560, y: 778 }, { x: 980, y: floorY + 3 },
+    { x: 1390, y: floorY - 5 }, { x: 1800, y: 2048 }, { x: 2220, y: 1278 },
+    { x: 2600, y: floorY - 2 }, { x: 720, y: 1758 }, { x: 1540, y: floorY + 5 },
+  ];
+  rockBeds.forEach(({ x, y }, index) => {
+    ctx.fillStyle = index % 2 ? `${level.floor}f2` : `${level.floor}cc`;
+    for (let stone = 0; stone < 3; stone += 1) {
+      ctx.beginPath();
+      ctx.ellipse(x + stone * 29, y - stone * 4, 31 - stone * 5, 18 + stone * 3, stone * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(220, 238, 205, .12)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x - 6, y - 5, 14, Math.PI * 1.08, Math.PI * 1.72);
+    ctx.stroke();
+  });
+
   if (level.id === 'freshwater') {
     for (let x = 120; x < WORLD.width; x += 270) {
       ctx.fillStyle = '#678e65';
@@ -634,20 +737,24 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
       ctx.stroke();
     }
   } else if (level.id === 'kelp') {
-    for (let x = 55; x < WORLD.width; x += 105) {
+    for (let x = 42; x < WORLD.width; x += 76) {
       const h = 520 + ((x * 13) % 780);
       const sway = Math.sin(time * 0.0007 + x) * 32;
-      ctx.strokeStyle = x % 210 ? '#597b48' : '#719253';
-      ctx.lineWidth = 18;
+      ctx.strokeStyle = x % 152 ? '#597b48' : '#719253';
+      ctx.lineWidth = 14;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(x, floorY);
       ctx.bezierCurveTo(x - 40, floorY - h * 0.35, x + sway + 30, floorY - h * 0.72, x + sway, floorY - h);
       ctx.stroke();
       ctx.fillStyle = 'rgba(152, 174, 87, .58)';
-      ctx.beginPath();
-      ctx.ellipse(x + sway - 10, floorY + 20 - h, 34, 14, -0.4, 0, Math.PI * 2);
-      ctx.fill();
+      for (let leaf = 0; leaf < 4; leaf += 1) {
+        const leafY = floorY - h * (0.45 + leaf * 0.15);
+        const leafX = x + sway * (0.45 + leaf * 0.14);
+        ctx.beginPath();
+        ctx.ellipse(leafX + (leaf % 2 ? 24 : -20), leafY, 30, 11, leaf % 2 ? 0.35 : -0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   } else if (level.id === 'polar') {
     ctx.fillStyle = 'rgba(211, 240, 239, .72)';
@@ -711,6 +818,24 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
     }
   }
 
+  if (level.id === 'freshwater' || level.id === 'mangrove' || level.id === 'saltwater') {
+    const gardens = [520, 1130, 1620, 2470];
+    gardens.forEach((gardenX, gardenIndex) => {
+      const gardenY = gardenIndex === 1 ? 780 : gardenIndex === 2 ? 1760 : floorY;
+      for (let blade = 0; blade < 7; blade += 1) {
+        const x = gardenX + blade * 15;
+        const h = 72 + (blade % 3) * 24;
+        const sway = Math.sin(time * 0.001 + blade + gardenIndex) * 12;
+        ctx.strokeStyle = level.id === 'saltwater' ? 'rgba(113, 157, 92, .72)' : 'rgba(92, 132, 78, .76)';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(x, gardenY);
+        ctx.quadraticCurveTo(x - 12, gardenY - h * 0.55, x + sway, gardenY - h);
+        ctx.stroke();
+      }
+    });
+  }
+
   if (level.id !== 'saltwater') return;
   const coral = [
     [310, floorY, '#f18b78'], [740, 780, '#e6a96f'], [1230, floorY, '#d87882'],
@@ -731,10 +856,46 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
   });
 }
 
+function drawHiddenAreas(
+  ctx: CanvasRenderingContext2D,
+  landmarks: Landmark[],
+  found: Set<string>,
+  time: number,
+) {
+  landmarks.forEach((landmark, index) => {
+    const pulse = 0.5 + Math.sin(time * 0.002 + index * 2.1) * 0.18;
+    ctx.fillStyle = 'rgba(8, 38, 47, .58)';
+    ctx.beginPath();
+    ctx.ellipse(landmark.x, landmark.y, 72, 54, -0.08, Math.PI, Math.PI * 2);
+    ctx.lineTo(landmark.x + 72, landmark.y + 35);
+    ctx.lineTo(landmark.x - 72, landmark.y + 35);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = found.has(landmark.name)
+      ? `rgba(248, 222, 126, ${0.5 + pulse * 0.4})`
+      : `rgba(202, 232, 201, ${0.2 + pulse * 0.18})`;
+    ctx.lineWidth = found.has(landmark.name) ? 5 : 3;
+    ctx.beginPath();
+    ctx.arc(landmark.x, landmark.y + 10, 72, Math.PI, Math.PI * 2);
+    ctx.stroke();
+
+    for (let sparkle = 0; sparkle < 4; sparkle += 1) {
+      const angle = time * 0.0008 + sparkle * 1.57 + index;
+      ctx.fillStyle = found.has(landmark.name) ? 'rgba(255, 231, 143, .76)' : 'rgba(210, 239, 220, .34)';
+      ctx.beginPath();
+      ctx.arc(landmark.x + Math.cos(angle) * 48, landmark.y - 14 + Math.sin(angle) * 25, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const touchInput = useRef({ x: 0, y: 0, cleaning: false, feeding: false, next: false });
   const audioRef = useRef<{ context: AudioContext; gain: GainNode; timer: number } | null>(null);
+  const journalRef = useRef<JournalData>(EMPTY_JOURNAL);
+  const journalOpenRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
   const [cleaned, setCleaned] = useState(0);
   const [nearAlgae, setNearAlgae] = useState(false);
@@ -748,6 +909,11 @@ export default function Home() {
   const [feeding, setFeeding] = useState(false);
   const [feedingMessage, setFeedingMessage] = useState('');
   const [snacksShared, setSnacksShared] = useState(0);
+  const [journal, setJournal] = useState<JournalData>(EMPTY_JOURNAL);
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [journalPage, setJournalPage] = useState(0);
+  const [foundPlaces, setFoundPlaces] = useState<string[]>([]);
+  const [placeMessage, setPlaceMessage] = useState('');
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -794,6 +960,24 @@ export default function Home() {
     setSoundOn(true);
   };
 
+  const openJournal = () => {
+    setJournalPage(levelIndex);
+    setJournalOpen(true);
+  };
+
+  useEffect(() => {
+    journalOpenRef.current = journalOpen;
+  }, [journalOpen]);
+
+  useEffect(() => {
+    const toggleJournal = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'j' && !event.repeat) setJournalOpen((open) => !open);
+      if (event.key === 'Escape') setJournalOpen(false);
+    };
+    window.addEventListener('keydown', toggleJournal);
+    return () => window.removeEventListener('keydown', toggleJournal);
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -803,7 +987,12 @@ export default function Home() {
     setCleaned(0);
     setNearAlgae(false);
     setNearbyCreature('');
-    setDiscovered([]);
+    const savedJournal = readJournal();
+    journalRef.current = savedJournal;
+    setJournal(savedJournal);
+    setDiscovered(savedJournal.creatures[level.id] ?? []);
+    setFoundPlaces(savedJournal.places[level.id] ?? []);
+    setPlaceMessage('');
     setNextProgress(0);
     setShowLevelIntro(true);
     setDepthMeters(0);
@@ -816,6 +1005,7 @@ export default function Home() {
     const camera = { x: 0, y: 0 };
     const keys = new Set<string>();
     const species = level.species;
+    const personalities: Fish['temperament'][] = ['curious', 'calm', 'playful', 'shy', 'sleepy', 'calm'];
     const fish: Fish[] = Array.from({ length: 40 }, (_, i) => ({
       x: 180 + ((i * 347) % 2450),
       y: 260 + (i % 3) * 650 + ((i * 173) % 390),
@@ -827,10 +1017,12 @@ export default function Home() {
       kind: species[i % species.length].kind,
       name: species[i % species.length].name,
       phase: i * 1.7,
-      temperament: i % 5 === 0 ? 'curious' : i % 3 === 0 ? 'shy' : 'calm',
+      temperament: personalities[i % personalities.length],
       happy: 0,
       biteCooldown: 0,
+      followTime: 0,
     }));
+    const landmarks = getLandmarks(level);
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
       { x: 1080, y: 680, size: 52, amount: 1 },
@@ -857,7 +1049,9 @@ export default function Home() {
     let lastFeeding = false;
     let feedNotice = 0;
     let snackCount = 0;
-    const seen = new Set<string>();
+    const seen = new Set(savedJournal.creatures[level.id] ?? []);
+    const foundLandmarks = new Set(savedJournal.places[level.id] ?? []);
+    let placeNotice = 0;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -885,12 +1079,14 @@ export default function Home() {
 
       let mx = 0;
       let my = 0;
-      if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
-      if (keys.has('d') || keys.has('arrowright')) mx += 1;
-      if (keys.has('w') || keys.has('arrowup')) my -= 1;
-      if (keys.has('s') || keys.has('arrowdown')) my += 1;
-      mx += touchInput.current.x;
-      my += touchInput.current.y;
+      if (!journalOpenRef.current) {
+        if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
+        if (keys.has('d') || keys.has('arrowright')) mx += 1;
+        if (keys.has('w') || keys.has('arrowup')) my -= 1;
+        if (keys.has('s') || keys.has('arrowdown')) my += 1;
+        mx += touchInput.current.x;
+        my += touchInput.current.y;
+      }
       if (mx && my) { mx *= 0.707; my *= 0.707; }
       player.vx += mx * 0.32 * dt;
       player.vy += my * 0.28 * dt;
@@ -911,7 +1107,7 @@ export default function Home() {
       if (currentDepth !== lastDepthMeters) { lastDepthMeters = currentDepth; setDepthMeters(currentDepth); }
       if (currentZone !== lastDepthZone) { lastDepthZone = currentZone; setDepthZone(currentZone); }
 
-      const isFeeding = keys.has('f') || touchInput.current.feeding;
+      const isFeeding = !journalOpenRef.current && (keys.has('f') || touchInput.current.feeding);
       feedCooldown -= dt;
       if (isFeeding && feedCooldown <= 0) {
         feedCooldown = 24;
@@ -939,13 +1135,29 @@ export default function Home() {
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
+        f.followTime = Math.max(0, f.followTime - dt);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
-        if (distance < 155) {
-          const reaction = f.temperament === 'curious' ? -0.012 : f.temperament === 'shy' ? 0.045 : 0.02;
-          f.vx += (dx / Math.max(distance, 1)) * reaction * dt;
-          f.vy += (dy / Math.max(distance, 1)) * reaction * 0.72 * dt;
+        const safeDistance = Math.max(distance, 1);
+        if (f.temperament === 'curious' && (distance < 460 || f.followTime > 0)) {
+          if (distance < 230) f.followTime = 620;
+          if (distance > 74) {
+            f.vx += (-dx / safeDistance) * 0.022 * dt;
+            f.vy += (-dy / safeDistance) * 0.02 * dt;
+          } else {
+            f.vx *= Math.pow(0.97, dt);
+            f.vy *= Math.pow(0.97, dt);
+          }
+        } else if (f.temperament === 'playful' && distance < 280) {
+          f.vx += ((-dx / safeDistance) * 0.009 + (-dy / safeDistance) * 0.012) * dt;
+          f.vy += ((-dy / safeDistance) * 0.009 + (dx / safeDistance) * 0.012) * dt;
+        } else if (f.temperament === 'shy' && distance < 175) {
+          f.vx += (dx / safeDistance) * 0.048 * dt;
+          f.vy += (dy / safeDistance) * 0.036 * dt;
+        } else if (f.temperament === 'calm' && distance < 105) {
+          f.vx += (dx / safeDistance) * 0.012 * dt;
+          f.vy += (dy / safeDistance) * 0.009 * dt;
         }
         if (food.length && Math.sin(f.phase * 2.17) > -0.72) {
           const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number; index: number }>((best, pellet, index) => {
@@ -955,7 +1167,7 @@ export default function Home() {
           if (nearestFood.pellet && nearestFood.distance < 560) {
             const foodDx = nearestFood.pellet.x - f.x;
             const foodDy = nearestFood.pellet.y - f.y;
-            const appetite = f.temperament === 'curious' ? 1.18 : f.temperament === 'shy' ? 0.78 : 1;
+            const appetite = f.temperament === 'curious' ? 1.18 : f.temperament === 'playful' ? 1.08 : f.temperament === 'sleepy' ? 0.58 : f.temperament === 'shy' ? 0.78 : 1;
             f.vx += (foodDx / Math.max(nearestFood.distance, 1)) * 0.013 * appetite * dt;
             f.vy += (foodDy / Math.max(nearestFood.distance, 1)) * 0.019 * appetite * dt;
             if (nearestFood.distance < Math.max(14, f.size * 0.42) && f.biteCooldown <= 0) {
@@ -970,8 +1182,9 @@ export default function Home() {
           }
         }
         f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
-        f.vx = Math.max(-0.9, Math.min(0.9, f.vx));
-        f.vy = Math.max(-1.15, Math.min(1.15, f.vy));
+        const swimLimit = f.temperament === 'curious' && f.followTime > 0 ? 1.45 : f.temperament === 'sleepy' ? 0.42 : 0.95;
+        f.vx = Math.max(-swimLimit, Math.min(swimLimit, f.vx));
+        f.vy = Math.max(-swimLimit, Math.min(swimLimit, f.vy));
         f.vy *= 0.98;
         f.x += f.vx * dt;
         f.y += f.vy * dt;
@@ -990,16 +1203,41 @@ export default function Home() {
       const creatureName = closestFish.fish && closestFish.distance < 125 ? closestFish.fish.name : '';
       if (creatureName && !seen.has(creatureName)) {
         seen.add(creatureName);
+        const creatures = { ...journalRef.current.creatures, [level.id]: Array.from(seen) };
+        const nextJournal = { ...journalRef.current, creatures };
+        journalRef.current = nextJournal;
+        setJournal(nextJournal);
+        writeJournal(nextJournal);
         setDiscovered(Array.from(seen));
       }
-      if (creatureName !== lastCreature) { lastCreature = creatureName; setNearbyCreature(creatureName); }
+      const creatureLabel = closestFish.fish && closestFish.distance < 125
+        ? `${closestFish.fish.temperament} · ${closestFish.fish.name}`
+        : '';
+      if (creatureLabel !== lastCreature) { lastCreature = creatureLabel; setNearbyCreature(creatureLabel); }
+
+      const nearbyLandmark = landmarks.find((landmark) => Math.hypot(landmark.x - player.x, landmark.y - player.y) < landmark.radius);
+      if (nearbyLandmark && !foundLandmarks.has(nearbyLandmark.name)) {
+        foundLandmarks.add(nearbyLandmark.name);
+        const places = { ...journalRef.current.places, [level.id]: Array.from(foundLandmarks) };
+        const nextJournal = { ...journalRef.current, places };
+        journalRef.current = nextJournal;
+        setJournal(nextJournal);
+        writeJournal(nextJournal);
+        setFoundPlaces(Array.from(foundLandmarks));
+        setPlaceMessage(nearbyLandmark.name);
+        placeNotice = 210;
+      }
+      if (placeNotice > 0) {
+        placeNotice -= dt;
+        if (placeNotice <= 0) setPlaceMessage('');
+      }
 
       const nearest = algae.reduce<{ patch: Algae | null; distance: number }>((best, patch) => {
         const distance = Math.hypot(patch.x - player.x, patch.y - player.y);
         return patch.amount > 0.02 && distance < best.distance ? { patch, distance } : best;
       }, { patch: null, distance: Infinity });
       const isNear = nearest.distance < 105;
-      const cleaning = isNear && (keys.has(' ') || touchInput.current.cleaning);
+      const cleaning = !journalOpenRef.current && isNear && (keys.has(' ') || touchInput.current.cleaning);
       if (cleaning && nearest.patch) {
         nearest.patch.amount = Math.max(0, nearest.patch.amount - 0.008 * dt);
         if (nearest.patch.amount < 0.02) nearest.patch.amount = 0;
@@ -1009,7 +1247,7 @@ export default function Home() {
       if (progress !== lastProgress) { lastProgress = progress; setCleaned(progress); }
       if (isNear !== lastNear) { lastNear = isNear; setNearAlgae(isNear); }
 
-      if (keys.has('x') || touchInput.current.next) {
+      if (!journalOpenRef.current && (keys.has('x') || touchInput.current.next)) {
         levelHold = Math.min(100, levelHold + 1.4 * dt);
       } else {
         levelHold = Math.max(0, levelHold - 2.5 * dt);
@@ -1051,6 +1289,7 @@ export default function Home() {
       }
 
       drawEnvironment(ctx, level, time);
+      drawHiddenAreas(ctx, landmarks, foundLandmarks, time);
       algae.forEach((patch) => {
         if (patch.amount <= 0.01) return;
         ctx.fillStyle = `rgba(${level.growth}, ${0.13 + patch.amount * 0.42})`;
@@ -1109,6 +1348,13 @@ export default function Home() {
     void audioRef.current.context.close();
   }, []);
 
+  const journalHabitat = LEVELS[journalPage];
+  const journalCreatures = new Set(journal.creatures[journalHabitat.id] ?? []);
+  const journalPlaces = new Set(journal.places[journalHabitat.id] ?? []);
+  const totalCreatureEntries = LEVELS.reduce((sum, habitat) => sum + (journal.creatures[habitat.id]?.length ?? 0), 0);
+  const totalCreatureCount = LEVELS.reduce((sum, habitat) => sum + habitat.species.length, 0);
+  const totalPlaceEntries = LEVELS.reduce((sum, habitat) => sum + (journal.places[habitat.id]?.length ?? 0), 0);
+
   return (
     <main className="game-shell">
       <canvas ref={canvasRef} className="aquarium" aria-label="A cozy aquarium where you can swim among fish and clean algae" />
@@ -1130,10 +1376,11 @@ export default function Home() {
       <aside className="field-card" aria-live="polite">
         <span className="eyebrow">Field notes</span>
         <strong>{discovered.length}<small> / {level.species.length} friends met</small></strong>
-        <p>40 animals · 3 depth zones{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
+        <p>40 animals · {foundPlaces.length}/3 secret places{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
         <div className="species-dots" aria-label={`${discovered.length} of ${level.species.length} species discovered`}>
           {level.species.map(({ name }) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
         </div>
+        <button className="journal-button" type="button" onClick={openJournal}><kbd>J</kbd> Open journal</button>
       </aside>
 
       <nav className="level-map" aria-label="Aquarium journey">
@@ -1146,7 +1393,11 @@ export default function Home() {
       </aside>
 
       <div className={`creature-label ${nearbyCreature ? 'visible' : ''}`}>
-        <span>new friend nearby</span><strong>{nearbyCreature}</strong>
+        <span>friend nearby</span><strong>{nearbyCreature}</strong>
+      </div>
+
+      <div className={`place-toast ${placeMessage ? 'visible' : ''}`} role="status">
+        <span>✦ Secret place found</span><strong>{placeMessage}</strong><small>Saved to your field journal</small>
       </div>
 
       <div className={`clean-prompt ${nearAlgae ? 'visible' : ''}`}>
@@ -1165,7 +1416,7 @@ export default function Home() {
         <i />
         <span><kbd>F</kbd> to feed</span>
         <i />
-        <span><kbd>↓</kbd> dive deeper</span>
+        <span><kbd>J</kbd> journal</span>
       </div>
 
       <div className={`next-card ${nextProgress > 0 ? 'holding' : ''}`}>
@@ -1181,6 +1432,7 @@ export default function Home() {
           <button type="button" aria-label="Swim right" onPointerDown={() => setTouchDirection(1, 0)} onPointerUp={() => setTouchDirection(0, 0)} onPointerCancel={() => setTouchDirection(0, 0)}>→</button>
         </div>
         <div className="touch-actions">
+          <button className="touch-journal-button" type="button" aria-label="Open field journal" onClick={openJournal}>journal</button>
           <button className="next-button" type="button" aria-label="Hold to travel to the next aquarium" onPointerDown={() => { touchInput.current.next = true; }} onPointerUp={() => { touchInput.current.next = false; }} onPointerCancel={() => { touchInput.current.next = false; }}>next</button>
           <button className="feed-button" type="button" aria-label="Feed nearby animals" onPointerDown={() => { touchInput.current.feeding = true; }} onPointerUp={() => { touchInput.current.feeding = false; }} onPointerCancel={() => { touchInput.current.feeding = false; }}>feed</button>
           <button className="brush-button" type="button" aria-label="Gently brush algae" onPointerDown={() => { touchInput.current.cleaning = true; }} onPointerUp={() => { touchInput.current.cleaning = false; }} onPointerCancel={() => { touchInput.current.cleaning = false; }}>brush</button>
@@ -1196,6 +1448,52 @@ export default function Home() {
         <strong>{level.name}</strong>
         <p>{level.moment} · three layers to explore</p>
       </div>
+      {journalOpen && (
+        <div className="journal-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setJournalOpen(false); }}>
+          <section className="journal-panel" role="dialog" aria-modal="true" aria-labelledby="journal-title">
+            <header className="journal-header">
+              <div><span>Saved on this device</span><h2 id="journal-title">Field journal</h2></div>
+              <button type="button" onClick={() => setJournalOpen(false)} aria-label="Close field journal">×</button>
+            </header>
+            <div className="journal-totals">
+              <p><strong>{totalCreatureEntries}</strong><span>of {totalCreatureCount}<br />creatures</span></p>
+              <i />
+              <p><strong>{totalPlaceEntries}</strong><span>of {LEVELS.length * 3}<br />secret places</span></p>
+            </div>
+            <nav className="journal-tabs" aria-label="Journal habitats">
+              {LEVELS.map((habitat, index) => (
+                <button key={habitat.id} type="button" aria-label={`Open ${habitat.name} journal page`} className={journalPage === index ? 'active' : ''} onClick={() => setJournalPage(index)}>
+                  {index + 1}<span>{habitat.name}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="journal-page">
+              <div className="journal-page-title"><div><span>{journalHabitat.moment}</span><h3>{journalHabitat.name}</h3></div><p>{journalCreatures.size} creatures · {journalPlaces.size} places</p></div>
+              <div className="journal-columns">
+                <section>
+                  <h4>Creature sightings</h4>
+                  <ol className="journal-list creature-list">
+                    {journalHabitat.species.map((species) => {
+                      const found = journalCreatures.has(species.name);
+                      return <li key={species.name} className={found ? 'found' : ''}><span className="journal-swatch" style={{ background: found ? species.color : undefined }} /> <div><strong>{found ? species.name : 'Unrecorded creature'}</strong><small>{found ? species.kind : 'Swim nearby to meet it'}</small></div></li>;
+                    })}
+                  </ol>
+                </section>
+                <section>
+                  <h4>Hidden corners</h4>
+                  <ol className="journal-list place-list">
+                    {LANDMARK_NOTES[journalHabitat.id].map((place) => {
+                      const found = journalPlaces.has(place.name);
+                      return <li key={place.name} className={found ? 'found' : ''}><span>✦</span><div><strong>{found ? place.name : 'Unmapped place'}</strong><small>{found ? place.note : 'Look beyond the main swimming paths'}</small></div></li>;
+                    })}
+                  </ol>
+                  <div className="personality-note"><span>Animal moods</span><p><b>Curious</b> friends come closer and may follow. <b>Playful</b> ones loop around you, while sleepy, calm, and shy neighbors keep their own pace.</p></div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       <div className="transition-wash" style={{ opacity: nextProgress / 100 }} />
     </main>
   );
