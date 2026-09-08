@@ -116,6 +116,9 @@ kbd { display: inline-grid; min-width: 27px; height: 25px; place-items: center; 
 .travel-panel { display: flex; width: min(920px, 100%); max-height: min(760px, calc(100vh - 56px)); flex-direction: column; overflow: hidden; border: 1px solid rgba(255,255,255,.52); border-radius: 28px; background: #edf2df; color: #234d50; box-shadow: 0 35px 100px rgba(2,30,38,.4); }
 .travel-backdrop { animation: travel-backdrop-in .32s ease-out both; }
 .travel-panel { transform-origin: 50% 42%; animation: travel-panel-in .52s cubic-bezier(.16,1,.3,1) both; }
+.travel-backdrop.closing { pointer-events: none; animation: travel-backdrop-out .3s ease-in both; }
+.travel-backdrop.closing .travel-panel { animation: travel-panel-out .3s cubic-bezier(.4,0,1,1) both; }
+.travel-backdrop.closing .travel-grid > button { opacity: 1; animation: none; }
 .travel-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px 17px; border-bottom: 1px solid rgba(42,84,76,.12); }
 .travel-header span { color: #789084; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .17em; }
 .travel-header h2 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 29px; font-weight: 500; letter-spacing: -.025em; }
@@ -147,6 +150,8 @@ kbd { display: inline-grid; min-width: 27px; height: 25px; place-items: center; 
 @keyframes travel-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes travel-panel-in { 0% { opacity: 0; transform: translateY(30px) scale(.94); } 72% { opacity: 1; transform: translateY(-2px) scale(1.008); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes travel-card-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes travel-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes travel-panel-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(20px) scale(.97); } }
 @media (hover: none), (pointer: coarse) {
   .controls-card { display: none; }
   .touch-controls { position: absolute; z-index: 3; inset: auto 18px 18px; display: flex; align-items: end; justify-content: space-between; pointer-events: none; }

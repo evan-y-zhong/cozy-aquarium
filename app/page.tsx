@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Fish = {
   x: number;
@@ -954,6 +954,8 @@ export default function Home() {
   const audioRef = useRef<{ context: AudioContext; gain: GainNode; timer: number } | null>(null);
   const journalRef = useRef<JournalData>(EMPTY_JOURNAL);
   const menuOpenRef = useRef(false);
+  const travelOpenRef = useRef(false);
+  const travelCloseTimer = useRef<number | null>(null);
   const [levelIndex, setLevelIndex] = useState(0);
   const [cleaned, setCleaned] = useState(0);
   const [nearAlgae, setNearAlgae] = useState(false);
@@ -970,6 +972,7 @@ export default function Home() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalPage, setJournalPage] = useState(0);
   const [travelOpen, setTravelOpen] = useState(false);
+  const [travelClosing, setTravelClosing] = useState(false);
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -1017,23 +1020,40 @@ export default function Home() {
   };
 
   const openJournal = () => {
+    if (travelCloseTimer.current !== null) window.clearTimeout(travelCloseTimer.current);
+    travelCloseTimer.current = null;
+    travelOpenRef.current = false;
+    setTravelClosing(false);
     setTravelOpen(false);
     setJournalPage(levelIndex);
     setJournalOpen(true);
   };
 
-  const openTravel = () => {
+  const openTravel = useCallback(() => {
+    if (travelCloseTimer.current !== null) window.clearTimeout(travelCloseTimer.current);
     setJournalOpen(false);
+    setTravelClosing(false);
+    travelOpenRef.current = true;
     setTravelOpen(true);
-  };
+  }, []);
 
-  const travelTo = (destination: number) => {
-    setTravelOpen(false);
-    if (destination !== levelIndex) setLevelIndex(destination);
-  };
+  const closeTravel = useCallback((destination?: number) => {
+    if (!travelOpenRef.current) return;
+    if (travelCloseTimer.current !== null) window.clearTimeout(travelCloseTimer.current);
+    setTravelClosing(true);
+    const closeDuration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300;
+    travelCloseTimer.current = window.setTimeout(() => {
+      travelOpenRef.current = false;
+      travelCloseTimer.current = null;
+      setTravelOpen(false);
+      setTravelClosing(false);
+      if (destination !== undefined && destination !== levelIndex) setLevelIndex(destination);
+    }, closeDuration);
+  }, [levelIndex]);
 
   useEffect(() => {
     menuOpenRef.current = journalOpen || travelOpen;
+    travelOpenRef.current = travelOpen;
   }, [journalOpen, travelOpen]);
 
   useEffect(() => {
@@ -1044,15 +1064,20 @@ export default function Home() {
       }
       if (event.key.toLowerCase() === 'x' && !event.repeat) {
         setJournalOpen(false);
-        setTravelOpen((open) => !open);
+        if (travelOpenRef.current) closeTravel();
+        else openTravel();
       }
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.repeat) {
         setJournalOpen(false);
-        setTravelOpen(false);
+        closeTravel();
       }
     };
     window.addEventListener('keydown', toggleJournal);
     return () => window.removeEventListener('keydown', toggleJournal);
+  }, [closeTravel, openTravel]);
+
+  useEffect(() => () => {
+    if (travelCloseTimer.current !== null) window.clearTimeout(travelCloseTimer.current);
   }, []);
 
   useEffect(() => {
@@ -1520,18 +1545,18 @@ export default function Home() {
         </div>
       )}
       {travelOpen && (
-        <div className="travel-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setTravelOpen(false); }}>
+        <div className={`travel-backdrop ${travelClosing ? 'closing' : ''}`} onMouseDown={(event) => { if (event.currentTarget === event.target) closeTravel(); }}>
           <section className="travel-panel" role="dialog" aria-modal="true" aria-labelledby="travel-title">
             <header className="travel-header">
               <div><span>Aquarium map</span><h2 id="travel-title">Where would you like to swim?</h2></div>
-              <button type="button" onClick={() => setTravelOpen(false)} aria-label="Close aquarium map">×</button>
+              <button type="button" onClick={() => closeTravel()} aria-label="Close aquarium map">×</button>
             </header>
             <div className="travel-grid">
               {LEVELS.map((habitat, index) => {
                 const sightings = journal.creatures[habitat.id]?.length ?? 0;
                 const isCurrent = index === levelIndex;
                 return (
-                  <button key={habitat.id} type="button" className={isCurrent ? 'current' : ''} onClick={() => travelTo(index)}>
+                  <button key={habitat.id} type="button" className={isCurrent ? 'current' : ''} onClick={() => closeTravel(index)}>
                     <i className="travel-palette" style={{ background: `linear-gradient(135deg, ${habitat.colors[0]}, ${habitat.colors[2]})` }} />
                     <span className="travel-number">{String(index + 1).padStart(2, '0')}</span>
                     <span className="travel-copy"><small>{habitat.moment}</small><strong>{habitat.name}</strong><em>{habitat.depthNames.join(' · ')}</em></span>
