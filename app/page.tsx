@@ -613,6 +613,129 @@ function drawDiver(ctx: CanvasRenderingContext2D, x: number, y: number, facing: 
   ctx.restore();
 }
 
+function drawFormationGrowth(
+  ctx: CanvasRenderingContext2D,
+  level: Level,
+  x: number,
+  y: number,
+  width: number,
+  seed: number,
+  time: number,
+) {
+  const reefLike = level.id === 'reef' || level.id === 'saltwater';
+  const leafy = level.id === 'freshwater' || level.id === 'mangrove' || level.id === 'kelp';
+
+  if (reefLike) {
+    const colors = level.id === 'reef' ? ['#ef8c7c', '#d989b5', '#efbd61', '#8dc58c'] : ['#cf8c7c', '#c692a9', '#d8ae68'];
+    for (let i = 0; i < 5; i += 1) {
+      const stemX = x + 34 + ((i * 67 + seed * 29) % Math.max(70, width - 68));
+      const height = 34 + ((i + seed) % 3) * 18;
+      ctx.strokeStyle = colors[(i + seed) % colors.length];
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(stemX, y);
+      ctx.lineTo(stemX, y - height);
+      ctx.moveTo(stemX, y - height * 0.52);
+      ctx.lineTo(stemX - 13, y - height * 0.78);
+      ctx.moveTo(stemX, y - height * 0.68);
+      ctx.lineTo(stemX + 15, y - height * 0.9);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  if (leafy) {
+    for (let i = 0; i < 7; i += 1) {
+      const stemX = x + 25 + ((i * 53 + seed * 31) % Math.max(60, width - 50));
+      const height = (level.id === 'kelp' ? 120 : 62) + ((i + seed) % 4) * 24;
+      const sway = Math.sin(time * 0.001 + i + seed) * (level.id === 'kelp' ? 18 : 10);
+      ctx.strokeStyle = level.id === 'kelp' ? 'rgba(116, 151, 72, .68)' : 'rgba(115, 154, 84, .62)';
+      ctx.lineWidth = level.id === 'kelp' ? 9 : 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(stemX, y);
+      ctx.quadraticCurveTo(stemX - 12, y - height * 0.55, stemX + sway, y - height);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(153, 178, 92, .48)';
+      ctx.beginPath();
+      ctx.ellipse(stemX + sway - 4, y - height + 7, 18, 7, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+
+  if (level.id === 'deepsea' || level.id === 'vents') {
+    const glow = level.id === 'vents' ? 'rgba(242, 133, 91, .7)' : 'rgba(103, 229, 202, .64)';
+    for (let i = 0; i < 8; i += 1) {
+      const stemX = x + 24 + ((i * 47 + seed * 37) % Math.max(55, width - 48));
+      const height = 18 + ((i + seed) % 4) * 10;
+      ctx.strokeStyle = glow;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(stemX, y);
+      ctx.quadraticCurveTo(stemX - 5, y - height * 0.55, stemX + Math.sin(time * 0.001 + i) * 4, y - height);
+      ctx.stroke();
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(stemX, y - height, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+
+  const accent = level.id === 'polar' ? 'rgba(205, 239, 239, .5)' : 'rgba(151, 205, 185, .34)';
+  for (let i = 0; i < 6; i += 1) {
+    const stemX = x + 30 + ((i * 61 + seed * 23) % Math.max(65, width - 60));
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(stemX, y);
+    ctx.lineTo(stemX + (i % 2 ? 9 : -7), y - 32 - (i % 3) * 12);
+    ctx.stroke();
+  }
+}
+
+function drawBackgroundFormations(ctx: CanvasRenderingContext2D, level: Level, time: number) {
+  const formations = [
+    { x: -90, y: 530, width: 500, height: 250 },
+    { x: 560, y: 890, width: 430, height: 225 },
+    { x: 1280, y: 600, width: 520, height: 285 },
+    { x: 2110, y: 1010, width: 560, height: 270 },
+    { x: 120, y: 1450, width: 470, height: 245 },
+    { x: 900, y: 1720, width: 540, height: 280 },
+    { x: 1760, y: 1510, width: 430, height: 230 },
+    { x: 2350, y: 1940, width: 520, height: 285 },
+  ];
+
+  ctx.save();
+  formations.forEach((formation, index) => {
+    const top = formation.y;
+    const base = formation.y + formation.height;
+    ctx.fillStyle = index % 2 ? `${level.floor}70` : `${level.floor}58`;
+    ctx.beginPath();
+    ctx.moveTo(formation.x, base + 190);
+    ctx.lineTo(formation.x + 30, top + 58);
+    ctx.quadraticCurveTo(formation.x + formation.width * 0.22, top - 22, formation.x + formation.width * 0.43, top + 18);
+    ctx.quadraticCurveTo(formation.x + formation.width * 0.68, top - 42, formation.x + formation.width - 18, top + 42);
+    ctx.lineTo(formation.x + formation.width, base + 190);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(210, 235, 213, .08)';
+    ctx.beginPath();
+    ctx.moveTo(formation.x + 32, top + 58);
+    ctx.quadraticCurveTo(formation.x + formation.width * 0.34, top - 8, formation.x + formation.width * 0.67, top + 22);
+    ctx.lineTo(formation.x + formation.width * 0.58, top + 48);
+    ctx.quadraticCurveTo(formation.x + formation.width * 0.3, top + 22, formation.x + 46, top + 82);
+    ctx.closePath();
+    ctx.fill();
+
+    drawFormationGrowth(ctx, level, formation.x + 12, top + 12, formation.width - 24, index, time);
+  });
+  ctx.restore();
+}
+
 function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: number) {
   const floorY = WORLD.height - 135;
   ctx.fillStyle = level.floor;
@@ -1186,6 +1309,8 @@ export default function Home() {
         ctx.lineTo(i * 390 + 260, WORLD.height);
         ctx.fill();
       }
+
+      drawBackgroundFormations(ctx, level, time);
 
       ctx.fillStyle = level.id === 'deepsea' ? 'rgba(117, 241, 210, .48)' : 'rgba(218, 249, 234, .34)';
       for (let i = 0; i < 70; i += 1) {
