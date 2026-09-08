@@ -16,7 +16,6 @@ type Fish = {
   name: string;
   happy: number;
   biteCooldown: number;
-  followTime: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -42,6 +41,7 @@ type JournalData = {
 };
 
 const WORLD = { width: 2800, height: 2400 };
+const CURIOUS_FOLLOW_RADIUS = 170;
 const LEVELS: Level[] = [
   {
     id: 'freshwater',
@@ -1020,7 +1020,6 @@ export default function Home() {
       temperament: personalities[i % personalities.length],
       happy: 0,
       biteCooldown: 0,
-      followTime: 0,
     }));
     const landmarks = getLandmarks(level);
     const algae: Algae[] = [
@@ -1135,13 +1134,11 @@ export default function Home() {
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
-        f.followTime = Math.max(0, f.followTime - dt);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
         const safeDistance = Math.max(distance, 1);
-        if (f.temperament === 'curious' && (distance < 460 || f.followTime > 0)) {
-          if (distance < 230) f.followTime = 620;
+        if (f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS) {
           if (distance > 74) {
             f.vx += (-dx / safeDistance) * 0.022 * dt;
             f.vy += (-dy / safeDistance) * 0.02 * dt;
@@ -1182,7 +1179,7 @@ export default function Home() {
           }
         }
         f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
-        const swimLimit = f.temperament === 'curious' && f.followTime > 0 ? 1.45 : f.temperament === 'sleepy' ? 0.42 : 0.95;
+        const swimLimit = f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS ? 1.15 : f.temperament === 'sleepy' ? 0.42 : 0.95;
         f.vx = Math.max(-swimLimit, Math.min(swimLimit, f.vx));
         f.vy = Math.max(-swimLimit, Math.min(swimLimit, f.vy));
         f.vy *= 0.98;
