@@ -17,6 +17,10 @@ type Fish = {
   happy: number;
   biteCooldown: number;
   diveClock: number;
+  homeY: number;
+  turnTimer: number;
+  targetVx: number;
+  targetVy: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -41,6 +45,8 @@ type JournalData = {
 
 const WORLD = { width: 2800, height: 2400 };
 const CURIOUS_FOLLOW_RADIUS = 170;
+const DARTING_KINDS = new Set<Fish['kind']>(['tang', 'clown', 'butterfly', 'puffer', 'angelfish', 'koi', 'angler']);
+const CRUISING_KINDS = new Set<Fish['kind']>(['ray', 'shark']);
 const LEVELS: Level[] = [
   {
     id: 'freshwater',
@@ -389,6 +395,8 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   }
 
   if (fish.kind === 'jelly') {
+    const pulse = (Math.sin(time * 0.006 + fish.phase) + 1) / 2;
+    ctx.scale(1 + pulse * 0.08, 1 - pulse * 0.1);
     ctx.globalAlpha = 0.78;
     ctx.fillStyle = '#dbc8e9';
     ctx.beginPath();
@@ -1241,6 +1249,10 @@ export default function Home() {
         happy: 0,
         biteCooldown: 0,
         diveClock: (i * 0.17) % 1,
+        homeY: isUrchin ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+        turnTimer: 35 + ((i * 47) % 130),
+        targetVx: (i % 2 ? -1 : 1) * (0.3 + (i % 4) * 0.08),
+        targetVy: ((i % 5) - 2) * 0.08,
       };
     });
     const algae: Algae[] = [
@@ -1374,10 +1386,57 @@ export default function Home() {
           return;
         }
 
+        if (f.kind === 'jelly') {
+          const slowDrift = Math.sin(time * 0.00065 + f.phase) * 0.24;
+          const bounceTarget = f.homeY + Math.sin(time * 0.00145 + f.phase) * 82;
+          const pulseLift = Math.max(0, Math.sin(time * 0.006 + f.phase)) * 0.012;
+          f.vx += (slowDrift - f.vx) * 0.008 * dt;
+          f.vy += ((bounceTarget - f.y) * 0.0018 - pulseLift) * dt;
+          f.vx = Math.max(-0.34, Math.min(0.34, f.vx));
+          f.vy = Math.max(-0.58, Math.min(0.58, f.vy));
+          f.vy *= Math.pow(0.988, dt);
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          if (f.x < 90 || f.x > WORLD.width - 90) f.vx *= -1;
+          if (f.y < 155 || f.y > WORLD.height - 220) {
+            f.vy *= -0.75;
+            f.homeY = Math.max(250, Math.min(WORLD.height - 320, f.homeY));
+          }
+          return;
+        }
+
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
         const safeDistance = Math.max(distance, 1);
+        const isDarting = DARTING_KINDS.has(f.kind);
+        const isCruising = CRUISING_KINDS.has(f.kind);
+
+        f.turnTimer -= dt;
+        if (f.turnTimer <= 0) {
+          const currentDirection = Math.sign(f.vx || f.targetVx || 1);
+          const changesDirection = Math.random() < (isDarting ? 0.14 : 0.06);
+          const nextDirection = changesDirection ? -currentDirection : currentDirection;
+          const baseSpeed = isCruising ? 0.58 : f.kind === 'seahorse' ? 0.2 : f.kind === 'eel' ? 0.48 : f.kind === 'otter' ? 0.68 : 0.5;
+          const speedVariation = isDarting ? Math.random() * 0.42 : Math.random() * 0.16;
+          f.targetVx = nextDirection * (baseSpeed + speedVariation);
+          f.targetVy = (Math.random() - 0.5) * (isDarting ? 0.72 : isCruising ? 0.18 : 0.4);
+          f.turnTimer = isDarting ? 42 + Math.random() * 105 : 110 + Math.random() * 190;
+
+          if (isDarting && Math.random() < 0.62) {
+            f.vx += nextDirection * (0.16 + Math.random() * 0.28);
+            f.vy += (Math.random() - 0.5) * 0.48;
+          }
+        }
+
+        const steering = isCruising ? 0.006 : f.kind === 'seahorse' ? 0.009 : 0.014;
+        f.vx += (f.targetVx - f.vx) * steering * dt;
+        f.vy += (f.targetVy - f.vy) * steering * dt;
+        if (isCruising) f.vy += (f.homeY - f.y) * 0.00014 * dt;
+        if (f.kind === 'eel') f.vy += Math.sin(time * 0.004 + f.phase) * 0.009 * dt;
+        if (f.kind === 'seahorse') f.vy += Math.sin(time * 0.0022 + f.phase) * 0.006 * dt;
+        if (f.kind === 'otter') f.vy += Math.sin(time * 0.0015 + f.phase) * 0.004 * dt;
+
         if (f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS) {
           if (distance > 74) {
             f.vx += (-dx / safeDistance) * 0.022 * dt;
@@ -1418,15 +1477,27 @@ export default function Home() {
             }
           }
         }
-        f.vy += Math.sin(time * 0.001 + f.phase) * 0.002;
-        const swimLimit = f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS ? 1.15 : f.temperament === 'sleepy' ? 0.42 : 0.95;
+        const naturalBob = isDarting ? 0.001 : f.kind === 'eel' ? 0.0035 : 0.0018;
+        f.vy += Math.sin(time * 0.001 + f.phase) * naturalBob;
+        const speciesLimit = isCruising ? 0.82 : f.kind === 'seahorse' ? 0.44 : f.kind === 'eel' ? 0.9 : f.kind === 'otter' ? 1.08 : 1.18;
+        const swimLimit = f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS
+          ? Math.max(1.15, speciesLimit)
+          : f.temperament === 'sleepy'
+            ? speciesLimit * 0.58
+            : speciesLimit;
         f.vx = Math.max(-swimLimit, Math.min(swimLimit, f.vx));
         f.vy = Math.max(-swimLimit, Math.min(swimLimit, f.vy));
-        f.vy *= 0.98;
+        f.vy *= isCruising ? 0.986 : 0.98;
         f.x += f.vx * dt;
         f.y += f.vy * dt;
-        if (f.x < 80 || f.x > WORLD.width - 80) f.vx *= -1;
-        if (f.y < 160 || f.y > WORLD.height - 210) f.vy *= -1;
+        if (f.x < 80 || f.x > WORLD.width - 80) {
+          f.vx *= -1;
+          f.targetVx *= -1;
+        }
+        if (f.y < 160 || f.y > WORLD.height - 210) {
+          f.vy *= -1;
+          f.targetVy *= -1;
+        }
       });
       if (feedNotice > 0) {
         feedNotice -= dt;
