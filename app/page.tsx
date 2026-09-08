@@ -10,12 +10,13 @@ type Fish = {
   size: number;
   color: string;
   accent: string;
-  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi';
+  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi' | 'urchin' | 'otter' | 'penguin';
   phase: number;
   temperament: 'shy' | 'curious' | 'calm' | 'playful' | 'sleepy';
   name: string;
   happy: number;
   biteCooldown: number;
+  diveClock: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -150,6 +151,8 @@ const LEVELS: Level[] = [
       { kind: 'eel', name: 'Wolf eel', color: '#697367', accent: '#a9af8e', scale: 1.25 },
       { kind: 'butterfly', name: 'Northern anchovy', color: '#9bb7b4', accent: '#d6e6d1' },
       { kind: 'koi', name: 'California sheephead', color: '#b66f69', accent: '#303f48', scale: 1.15 },
+      { kind: 'urchin', name: 'Purple sea urchin', color: '#745780', accent: '#c3a8cc', scale: 0.9 },
+      { kind: 'otter', name: 'Southern sea otter', color: '#705847', accent: '#dfc49c', scale: 1.25 },
     ],
   },
   {
@@ -192,6 +195,7 @@ const LEVELS: Level[] = [
       { kind: 'butterfly', name: 'Capelin', color: '#99b9bf', accent: '#dce7dc' },
       { kind: 'jelly', name: 'Lion’s mane jelly', color: '#c89d8f', accent: '#f1d4bd', scale: 1.2 },
       { kind: 'koi', name: 'Lumpsucker', color: '#7f9a94', accent: '#d0cfaa' },
+      { kind: 'penguin', name: 'Gentoo penguin', color: '#293b44', accent: '#f4eee0', scale: 1.2 },
     ],
   },
   {
@@ -279,6 +283,110 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   ctx.save();
   ctx.translate(fish.x, fish.y + bob);
   ctx.scale(direction, 1);
+
+  if (fish.kind === 'urchin') {
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 18; i += 1) {
+      const angle = (i / 18) * Math.PI * 2;
+      const sway = Math.sin(time * 0.0015 + fish.phase + i) * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * fish.size * 0.34, Math.sin(angle) * fish.size * 0.34);
+      ctx.lineTo(Math.cos(angle) * (fish.size * 0.72 + sway), Math.sin(angle) * (fish.size * 0.72 + sway));
+      ctx.stroke();
+    }
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, fish.size * 0.43, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(246, 221, 190, .7)';
+    for (let i = 0; i < 7; i += 1) {
+      const angle = fish.phase + i * 2.3;
+      ctx.beginPath();
+      ctx.arc(Math.cos(angle) * fish.size * 0.23, Math.sin(angle) * fish.size * 0.23, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'otter') {
+    const paddle = Math.sin(time * 0.008 + fish.phase) * 0.28;
+    ctx.rotate(Math.sin(time * 0.001 + fish.phase) * 0.06);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.08, 0, fish.size * 0.8, fish.size * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.58, -fish.size * 0.03, fish.size * 0.35, fish.size * 0.31, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.83, fish.size * 0.04, fish.size * 0.48, fish.size * 0.13, 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.67, fish.size * 0.02, fish.size * 0.22, fish.size * 0.19, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.43, -fish.size * 0.25, fish.size * 0.09, 0, Math.PI * 2);
+    ctx.arc(fish.size * 0.74, -fish.size * 0.25, fish.size * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.translate(-fish.size * 0.05, fish.size * 0.22);
+    ctx.rotate(paddle);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(0, fish.size * 0.22, fish.size * 0.11, fish.size * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#263a3b';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.82, 0, fish.size * 0.06, 0, Math.PI * 2);
+    ctx.arc(fish.size * 0.67, -fish.size * 0.08, fish.size * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'penguin') {
+    const tilt = Math.atan2(fish.vy, Math.max(Math.abs(fish.vx), 0.28)) * 0.72;
+    const flap = Math.sin(time * 0.012 + fish.phase) * 0.3;
+    ctx.rotate(tilt);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, fish.size * 0.72, fish.size * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.12, fish.size * 0.07, fish.size * 0.46, fish.size * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#efad55';
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.68, -fish.size * 0.06);
+    ctx.lineTo(fish.size * 0.96, fish.size * 0.03);
+    ctx.lineTo(fish.size * 0.67, fish.size * 0.11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.save();
+    ctx.rotate(flap);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.06, fish.size * 0.3, fish.size * 0.34, fish.size * 0.11, 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#edf3ec';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.48, -fish.size * 0.12, fish.size * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1d3038';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.51, -fish.size * 0.12, fish.size * 0.032, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
 
   if (fish.kind === 'jelly') {
     ctx.globalAlpha = 0.78;
@@ -1105,21 +1213,36 @@ export default function Home() {
     const keys = new Set<string>();
     const species = level.species;
     const personalities: Fish['temperament'][] = ['curious', 'calm', 'playful', 'shy', 'sleepy', 'calm'];
-    const fish: Fish[] = Array.from({ length: 40 }, (_, i) => ({
-      x: 180 + ((i * 347) % 2450),
-      y: 260 + (i % 3) * 650 + ((i * 173) % 390),
-      vx: (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
-      vy: 0,
-      size: (['ray', 'shark'].includes(species[i % species.length].kind) ? 42 + (i % 3) * 6 : 20 + (i % 5) * 3.5) * (species[i % species.length].scale ?? 1),
-      color: species[i % species.length].color,
-      accent: species[i % species.length].accent,
-      kind: species[i % species.length].kind,
-      name: species[i % species.length].name,
-      phase: i * 1.7,
-      temperament: personalities[i % personalities.length],
-      happy: 0,
-      biteCooldown: 0,
-    }));
+    const urchinPerches = [
+      { x: 520, y: 720 },
+      { x: 2220, y: 1260 },
+      { x: 760, y: 1715 },
+      { x: 1810, y: 2040 },
+      { x: 2520, y: WORLD.height - 175 },
+    ];
+    const fish: Fish[] = Array.from({ length: 40 }, (_, i) => {
+      const animal = species[i % species.length];
+      const isUrchin = animal.kind === 'urchin';
+      const isPenguin = animal.kind === 'penguin';
+      const perch = urchinPerches[i % urchinPerches.length];
+      const largeAnimal = ['ray', 'shark', 'otter', 'penguin'].includes(animal.kind);
+      return {
+        x: isUrchin ? perch.x : 180 + ((i * 347) % 2450),
+        y: isUrchin ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+        vx: isUrchin ? 0 : (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
+        vy: 0,
+        size: (largeAnimal ? 42 + (i % 3) * 6 : isUrchin ? 26 + (i % 3) * 3 : 20 + (i % 5) * 3.5) * (animal.scale ?? 1),
+        color: animal.color,
+        accent: animal.accent,
+        kind: animal.kind,
+        name: animal.name,
+        phase: i * 1.7,
+        temperament: personalities[i % personalities.length],
+        happy: 0,
+        biteCooldown: 0,
+        diveClock: (i * 0.17) % 1,
+      };
+    });
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
       { x: 1080, y: 680, size: 52, amount: 1 },
@@ -1228,6 +1351,29 @@ export default function Home() {
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
+
+        if (f.kind === 'urchin') {
+          f.vx = 0;
+          f.vy = 0;
+          return;
+        }
+
+        if (f.kind === 'penguin') {
+          f.diveClock = (f.diveClock + 0.00068 * dt) % 1;
+          const diveProgress = (1 - Math.cos(f.diveClock * Math.PI * 2)) / 2;
+          const targetY = 145 + diveProgress * 1570;
+          f.vy += (targetY - f.y) * 0.0036 * dt;
+          f.vx += Math.sin(time * 0.0011 + f.phase) * 0.004 * dt;
+          f.vx = Math.max(-1.25, Math.min(1.25, f.vx));
+          f.vy = Math.max(-2.25, Math.min(2.25, f.vy));
+          f.vy *= Math.pow(0.985, dt);
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          if (f.x < 100 || f.x > WORLD.width - 100) f.vx *= -1;
+          f.y = Math.max(125, Math.min(WORLD.height - 240, f.y));
+          return;
+        }
+
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
