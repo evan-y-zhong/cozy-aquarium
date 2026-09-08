@@ -45,8 +45,253 @@ type JournalData = {
 
 const WORLD = { width: 2800, height: 2400 };
 const CURIOUS_FOLLOW_RADIUS = 170;
-const DARTING_KINDS = new Set<Fish['kind']>(['tang', 'clown', 'butterfly', 'puffer', 'angelfish', 'koi', 'angler']);
-const CRUISING_KINDS = new Set<Fish['kind']>(['ray', 'shark']);
+
+type MotionContext = { time: number; dt: number };
+
+abstract class AnimalBehavior {
+  readonly allowsSocialResponse: boolean = true;
+  readonly allowsFeeding: boolean = true;
+
+  abstract updateNaturalMotion(animal: Fish, context: MotionContext): void;
+
+  protected getSpeedLimit() {
+    return 0.95;
+  }
+
+  protected getVerticalDamping() {
+    return 0.98;
+  }
+
+  move(animal: Fish, context: MotionContext, isFollowing: boolean) {
+    const naturalLimit = this.getSpeedLimit();
+    const speedLimit = isFollowing ? Math.max(1.15, naturalLimit) : animal.temperament === 'sleepy' ? naturalLimit * 0.58 : naturalLimit;
+    animal.vx = Math.max(-speedLimit, Math.min(speedLimit, animal.vx));
+    animal.vy = Math.max(-speedLimit, Math.min(speedLimit, animal.vy));
+    animal.vy *= Math.pow(this.getVerticalDamping(), context.dt);
+    animal.x += animal.vx * context.dt;
+    animal.y += animal.vy * context.dt;
+
+    if (animal.x < 80 || animal.x > WORLD.width - 80) {
+      animal.vx *= -1;
+      animal.targetVx *= -1;
+    }
+    if (animal.y < 160 || animal.y > WORLD.height - 210) {
+      animal.vy *= -1;
+      animal.targetVy *= -1;
+    }
+  }
+}
+
+type SwimmingOptions = {
+  baseSpeed: number;
+  speedVariation: number;
+  verticalVariation: number;
+  minTurnTime: number;
+  turnTimeVariation: number;
+  turnChance: number;
+  steering: number;
+  speedLimit: number;
+  verticalDamping?: number;
+};
+
+class SwimmingBehavior extends AnimalBehavior {
+  constructor(protected readonly options: SwimmingOptions) {
+    super();
+  }
+
+  protected onCourseChange(animal: Fish, direction: number) {
+    void animal;
+    void direction;
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    void animal;
+    void context;
+  }
+
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    animal.turnTimer -= context.dt;
+    if (animal.turnTimer <= 0) {
+      const currentDirection = Math.sign(animal.vx || animal.targetVx || 1);
+      const nextDirection = Math.random() < this.options.turnChance ? -currentDirection : currentDirection;
+      animal.targetVx = nextDirection * (this.options.baseSpeed + Math.random() * this.options.speedVariation);
+      animal.targetVy = (Math.random() - 0.5) * this.options.verticalVariation;
+      animal.turnTimer = this.options.minTurnTime + Math.random() * this.options.turnTimeVariation;
+      this.onCourseChange(animal, nextDirection);
+    }
+
+    animal.vx += (animal.targetVx - animal.vx) * this.options.steering * context.dt;
+    animal.vy += (animal.targetVy - animal.vy) * this.options.steering * context.dt;
+    this.addSpeciesMotion(animal, context);
+  }
+
+  protected getSpeedLimit() {
+    return this.options.speedLimit;
+  }
+
+  protected getVerticalDamping() {
+    return this.options.verticalDamping ?? 0.98;
+  }
+}
+
+class DartingBehavior extends SwimmingBehavior {
+  constructor() {
+    super({
+      baseSpeed: 0.5,
+      speedVariation: 0.42,
+      verticalVariation: 0.72,
+      minTurnTime: 42,
+      turnTimeVariation: 105,
+      turnChance: 0.14,
+      steering: 0.014,
+      speedLimit: 1.18,
+    });
+  }
+
+  protected onCourseChange(animal: Fish, direction: number) {
+    if (Math.random() < 0.62) {
+      animal.vx += direction * (0.16 + Math.random() * 0.28);
+      animal.vy += (Math.random() - 0.5) * 0.48;
+    }
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += Math.sin(context.time * 0.001 + animal.phase) * 0.001;
+  }
+}
+
+class CruisingBehavior extends SwimmingBehavior {
+  constructor() {
+    super({
+      baseSpeed: 0.58,
+      speedVariation: 0.16,
+      verticalVariation: 0.18,
+      minTurnTime: 110,
+      turnTimeVariation: 190,
+      turnChance: 0.06,
+      steering: 0.006,
+      speedLimit: 0.82,
+      verticalDamping: 0.986,
+    });
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += (animal.homeY - animal.y) * 0.00014 * context.dt;
+  }
+}
+
+class UndulatingBehavior extends SwimmingBehavior {
+  constructor() {
+    super({ baseSpeed: 0.48, speedVariation: 0.16, verticalVariation: 0.4, minTurnTime: 110, turnTimeVariation: 190, turnChance: 0.06, steering: 0.014, speedLimit: 0.9 });
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += Math.sin(context.time * 0.004 + animal.phase) * 0.009 * context.dt;
+  }
+}
+
+class HoveringBehavior extends SwimmingBehavior {
+  constructor() {
+    super({ baseSpeed: 0.2, speedVariation: 0.12, verticalVariation: 0.28, minTurnTime: 120, turnTimeVariation: 180, turnChance: 0.05, steering: 0.009, speedLimit: 0.44 });
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += Math.sin(context.time * 0.0022 + animal.phase) * 0.006 * context.dt;
+  }
+}
+
+class OtterBehavior extends SwimmingBehavior {
+  constructor() {
+    super({ baseSpeed: 0.68, speedVariation: 0.18, verticalVariation: 0.4, minTurnTime: 100, turnTimeVariation: 160, turnChance: 0.08, steering: 0.014, speedLimit: 1.08 });
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += Math.sin(context.time * 0.0015 + animal.phase) * 0.004 * context.dt;
+  }
+}
+
+class JellyfishBehavior extends AnimalBehavior {
+  readonly allowsSocialResponse = false;
+  readonly allowsFeeding = false;
+
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    const slowDrift = Math.sin(context.time * 0.00065 + animal.phase) * 0.24;
+    const bounceTarget = animal.homeY + Math.sin(context.time * 0.00145 + animal.phase) * 82;
+    const pulseLift = Math.max(0, Math.sin(context.time * 0.006 + animal.phase)) * 0.012;
+    animal.vx += (slowDrift - animal.vx) * 0.008 * context.dt;
+    animal.vy += ((bounceTarget - animal.y) * 0.0018 - pulseLift) * context.dt;
+  }
+
+  move(animal: Fish, context: MotionContext) {
+    animal.vx = Math.max(-0.34, Math.min(0.34, animal.vx));
+    animal.vy = Math.max(-0.58, Math.min(0.58, animal.vy));
+    animal.vy *= Math.pow(0.988, context.dt);
+    animal.x += animal.vx * context.dt;
+    animal.y += animal.vy * context.dt;
+    if (animal.x < 90 || animal.x > WORLD.width - 90) animal.vx *= -1;
+    if (animal.y < 155 || animal.y > WORLD.height - 220) {
+      animal.vy *= -0.75;
+      animal.homeY = Math.max(250, Math.min(WORLD.height - 320, animal.homeY));
+    }
+  }
+}
+
+class DivingBehavior extends AnimalBehavior {
+  readonly allowsSocialResponse = false;
+  readonly allowsFeeding = false;
+
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    animal.diveClock = (animal.diveClock + 0.00068 * context.dt) % 1;
+    const diveProgress = (1 - Math.cos(animal.diveClock * Math.PI * 2)) / 2;
+    const targetY = 145 + diveProgress * 1570;
+    animal.vy += (targetY - animal.y) * 0.0036 * context.dt;
+    animal.vx += Math.sin(context.time * 0.0011 + animal.phase) * 0.004 * context.dt;
+  }
+
+  move(animal: Fish, context: MotionContext) {
+    animal.vx = Math.max(-1.25, Math.min(1.25, animal.vx));
+    animal.vy = Math.max(-2.25, Math.min(2.25, animal.vy));
+    animal.vy *= Math.pow(0.985, context.dt);
+    animal.x += animal.vx * context.dt;
+    animal.y += animal.vy * context.dt;
+    if (animal.x < 100 || animal.x > WORLD.width - 100) animal.vx *= -1;
+    animal.y = Math.max(125, Math.min(WORLD.height - 240, animal.y));
+  }
+}
+
+class StationaryBehavior extends AnimalBehavior {
+  readonly allowsSocialResponse = false;
+  readonly allowsFeeding = false;
+
+  updateNaturalMotion(animal: Fish) {
+    animal.vx = 0;
+    animal.vy = 0;
+  }
+
+  move() {}
+}
+
+const dartingBehavior = new DartingBehavior();
+const cruisingBehavior = new CruisingBehavior();
+// New animals can reuse one of these instances or extend a behavior class with a species-specific motion hook.
+const ANIMAL_BEHAVIORS: Record<Fish['kind'], AnimalBehavior> = {
+  tang: dartingBehavior,
+  clown: dartingBehavior,
+  butterfly: dartingBehavior,
+  puffer: dartingBehavior,
+  angelfish: dartingBehavior,
+  koi: dartingBehavior,
+  angler: dartingBehavior,
+  ray: cruisingBehavior,
+  shark: cruisingBehavior,
+  eel: new UndulatingBehavior(),
+  seahorse: new HoveringBehavior(),
+  otter: new OtterBehavior(),
+  jelly: new JellyfishBehavior(),
+  penguin: new DivingBehavior(),
+  urchin: new StationaryBehavior(),
+};
+
 const LEVELS: Level[] = [
   {
     id: 'freshwater',
@@ -1363,81 +1608,15 @@ export default function Home() {
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
-
-        if (f.kind === 'urchin') {
-          f.vx = 0;
-          f.vy = 0;
-          return;
-        }
-
-        if (f.kind === 'penguin') {
-          f.diveClock = (f.diveClock + 0.00068 * dt) % 1;
-          const diveProgress = (1 - Math.cos(f.diveClock * Math.PI * 2)) / 2;
-          const targetY = 145 + diveProgress * 1570;
-          f.vy += (targetY - f.y) * 0.0036 * dt;
-          f.vx += Math.sin(time * 0.0011 + f.phase) * 0.004 * dt;
-          f.vx = Math.max(-1.25, Math.min(1.25, f.vx));
-          f.vy = Math.max(-2.25, Math.min(2.25, f.vy));
-          f.vy *= Math.pow(0.985, dt);
-          f.x += f.vx * dt;
-          f.y += f.vy * dt;
-          if (f.x < 100 || f.x > WORLD.width - 100) f.vx *= -1;
-          f.y = Math.max(125, Math.min(WORLD.height - 240, f.y));
-          return;
-        }
-
-        if (f.kind === 'jelly') {
-          const slowDrift = Math.sin(time * 0.00065 + f.phase) * 0.24;
-          const bounceTarget = f.homeY + Math.sin(time * 0.00145 + f.phase) * 82;
-          const pulseLift = Math.max(0, Math.sin(time * 0.006 + f.phase)) * 0.012;
-          f.vx += (slowDrift - f.vx) * 0.008 * dt;
-          f.vy += ((bounceTarget - f.y) * 0.0018 - pulseLift) * dt;
-          f.vx = Math.max(-0.34, Math.min(0.34, f.vx));
-          f.vy = Math.max(-0.58, Math.min(0.58, f.vy));
-          f.vy *= Math.pow(0.988, dt);
-          f.x += f.vx * dt;
-          f.y += f.vy * dt;
-          if (f.x < 90 || f.x > WORLD.width - 90) f.vx *= -1;
-          if (f.y < 155 || f.y > WORLD.height - 220) {
-            f.vy *= -0.75;
-            f.homeY = Math.max(250, Math.min(WORLD.height - 320, f.homeY));
-          }
-          return;
-        }
-
+        const behavior = ANIMAL_BEHAVIORS[f.kind];
+        const motionContext = { time, dt };
+        behavior.updateNaturalMotion(f, motionContext);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
         const distance = Math.hypot(dx, dy);
         const safeDistance = Math.max(distance, 1);
-        const isDarting = DARTING_KINDS.has(f.kind);
-        const isCruising = CRUISING_KINDS.has(f.kind);
 
-        f.turnTimer -= dt;
-        if (f.turnTimer <= 0) {
-          const currentDirection = Math.sign(f.vx || f.targetVx || 1);
-          const changesDirection = Math.random() < (isDarting ? 0.14 : 0.06);
-          const nextDirection = changesDirection ? -currentDirection : currentDirection;
-          const baseSpeed = isCruising ? 0.58 : f.kind === 'seahorse' ? 0.2 : f.kind === 'eel' ? 0.48 : f.kind === 'otter' ? 0.68 : 0.5;
-          const speedVariation = isDarting ? Math.random() * 0.42 : Math.random() * 0.16;
-          f.targetVx = nextDirection * (baseSpeed + speedVariation);
-          f.targetVy = (Math.random() - 0.5) * (isDarting ? 0.72 : isCruising ? 0.18 : 0.4);
-          f.turnTimer = isDarting ? 42 + Math.random() * 105 : 110 + Math.random() * 190;
-
-          if (isDarting && Math.random() < 0.62) {
-            f.vx += nextDirection * (0.16 + Math.random() * 0.28);
-            f.vy += (Math.random() - 0.5) * 0.48;
-          }
-        }
-
-        const steering = isCruising ? 0.006 : f.kind === 'seahorse' ? 0.009 : 0.014;
-        f.vx += (f.targetVx - f.vx) * steering * dt;
-        f.vy += (f.targetVy - f.vy) * steering * dt;
-        if (isCruising) f.vy += (f.homeY - f.y) * 0.00014 * dt;
-        if (f.kind === 'eel') f.vy += Math.sin(time * 0.004 + f.phase) * 0.009 * dt;
-        if (f.kind === 'seahorse') f.vy += Math.sin(time * 0.0022 + f.phase) * 0.006 * dt;
-        if (f.kind === 'otter') f.vy += Math.sin(time * 0.0015 + f.phase) * 0.004 * dt;
-
-        if (f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS) {
+        if (behavior.allowsSocialResponse && f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS) {
           if (distance > 74) {
             f.vx += (-dx / safeDistance) * 0.022 * dt;
             f.vy += (-dy / safeDistance) * 0.02 * dt;
@@ -1445,17 +1624,17 @@ export default function Home() {
             f.vx *= Math.pow(0.97, dt);
             f.vy *= Math.pow(0.97, dt);
           }
-        } else if (f.temperament === 'playful' && distance < 280) {
+        } else if (behavior.allowsSocialResponse && f.temperament === 'playful' && distance < 280) {
           f.vx += ((-dx / safeDistance) * 0.009 + (-dy / safeDistance) * 0.012) * dt;
           f.vy += ((-dy / safeDistance) * 0.009 + (dx / safeDistance) * 0.012) * dt;
-        } else if (f.temperament === 'shy' && distance < 175) {
+        } else if (behavior.allowsSocialResponse && f.temperament === 'shy' && distance < 175) {
           f.vx += (dx / safeDistance) * 0.048 * dt;
           f.vy += (dy / safeDistance) * 0.036 * dt;
-        } else if (f.temperament === 'calm' && distance < 105) {
+        } else if (behavior.allowsSocialResponse && f.temperament === 'calm' && distance < 105) {
           f.vx += (dx / safeDistance) * 0.012 * dt;
           f.vy += (dy / safeDistance) * 0.009 * dt;
         }
-        if (food.length && Math.sin(f.phase * 2.17) > -0.72) {
+        if (behavior.allowsFeeding && food.length && Math.sin(f.phase * 2.17) > -0.72) {
           const nearestFood = food.reduce<{ pellet: FoodPellet | null; distance: number; index: number }>((best, pellet, index) => {
             const pelletDistance = Math.hypot(pellet.x - f.x, pellet.y - f.y);
             return pelletDistance < best.distance ? { pellet, distance: pelletDistance, index } : best;
@@ -1477,27 +1656,8 @@ export default function Home() {
             }
           }
         }
-        const naturalBob = isDarting ? 0.001 : f.kind === 'eel' ? 0.0035 : 0.0018;
-        f.vy += Math.sin(time * 0.001 + f.phase) * naturalBob;
-        const speciesLimit = isCruising ? 0.82 : f.kind === 'seahorse' ? 0.44 : f.kind === 'eel' ? 0.9 : f.kind === 'otter' ? 1.08 : 1.18;
-        const swimLimit = f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS
-          ? Math.max(1.15, speciesLimit)
-          : f.temperament === 'sleepy'
-            ? speciesLimit * 0.58
-            : speciesLimit;
-        f.vx = Math.max(-swimLimit, Math.min(swimLimit, f.vx));
-        f.vy = Math.max(-swimLimit, Math.min(swimLimit, f.vy));
-        f.vy *= isCruising ? 0.986 : 0.98;
-        f.x += f.vx * dt;
-        f.y += f.vy * dt;
-        if (f.x < 80 || f.x > WORLD.width - 80) {
-          f.vx *= -1;
-          f.targetVx *= -1;
-        }
-        if (f.y < 160 || f.y > WORLD.height - 210) {
-          f.vy *= -1;
-          f.targetVy *= -1;
-        }
+        const isFollowing = behavior.allowsSocialResponse && f.temperament === 'curious' && distance < CURIOUS_FOLLOW_RADIUS;
+        behavior.move(f, motionContext, isFollowing);
       });
       if (feedNotice > 0) {
         feedNotice -= dt;
