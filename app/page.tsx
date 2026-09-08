@@ -950,17 +950,16 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const touchInput = useRef({ x: 0, y: 0, cleaning: false, feeding: false, next: false });
+  const touchInput = useRef({ x: 0, y: 0, cleaning: false, feeding: false });
   const audioRef = useRef<{ context: AudioContext; gain: GainNode; timer: number } | null>(null);
   const journalRef = useRef<JournalData>(EMPTY_JOURNAL);
-  const journalOpenRef = useRef(false);
+  const menuOpenRef = useRef(false);
   const [levelIndex, setLevelIndex] = useState(0);
   const [cleaned, setCleaned] = useState(0);
   const [nearAlgae, setNearAlgae] = useState(false);
   const [nearbyCreature, setNearbyCreature] = useState('');
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [soundOn, setSoundOn] = useState(false);
-  const [nextProgress, setNextProgress] = useState(0);
   const [showLevelIntro, setShowLevelIntro] = useState(true);
   const [depthMeters, setDepthMeters] = useState(0);
   const [depthZone, setDepthZone] = useState('');
@@ -970,6 +969,7 @@ export default function Home() {
   const [journal, setJournal] = useState<JournalData>(EMPTY_JOURNAL);
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalPage, setJournalPage] = useState(0);
+  const [travelOpen, setTravelOpen] = useState(false);
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -1017,18 +1017,39 @@ export default function Home() {
   };
 
   const openJournal = () => {
+    setTravelOpen(false);
     setJournalPage(levelIndex);
     setJournalOpen(true);
   };
 
+  const openTravel = () => {
+    setJournalOpen(false);
+    setTravelOpen(true);
+  };
+
+  const travelTo = (destination: number) => {
+    setTravelOpen(false);
+    if (destination !== levelIndex) setLevelIndex(destination);
+  };
+
   useEffect(() => {
-    journalOpenRef.current = journalOpen;
-  }, [journalOpen]);
+    menuOpenRef.current = journalOpen || travelOpen;
+  }, [journalOpen, travelOpen]);
 
   useEffect(() => {
     const toggleJournal = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === 'j' && !event.repeat) setJournalOpen((open) => !open);
-      if (event.key === 'Escape') setJournalOpen(false);
+      if (event.key.toLowerCase() === 'j' && !event.repeat) {
+        setTravelOpen(false);
+        setJournalOpen((open) => !open);
+      }
+      if (event.key.toLowerCase() === 'x' && !event.repeat) {
+        setJournalOpen(false);
+        setTravelOpen((open) => !open);
+      }
+      if (event.key === 'Escape') {
+        setJournalOpen(false);
+        setTravelOpen(false);
+      }
     };
     window.addEventListener('keydown', toggleJournal);
     return () => window.removeEventListener('keydown', toggleJournal);
@@ -1047,7 +1068,6 @@ export default function Home() {
     journalRef.current = savedJournal;
     setJournal(savedJournal);
     setDiscovered(savedJournal.creatures[level.id] ?? []);
-    setNextProgress(0);
     setShowLevelIntro(true);
     setDepthMeters(0);
     setDepthZone(level.depthNames[0]);
@@ -1093,8 +1113,6 @@ export default function Home() {
     let lastProgress = -1;
     let lastNear = false;
     let lastCreature = '';
-    let levelHold = 0;
-    let lastLevelHold = -1;
     let lastDepthMeters = -1;
     let lastDepthZone = '';
     let feedCooldown = 0;
@@ -1129,7 +1147,7 @@ export default function Home() {
 
       let mx = 0;
       let my = 0;
-      if (!journalOpenRef.current) {
+      if (!menuOpenRef.current) {
         if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
         if (keys.has('d') || keys.has('arrowright')) mx += 1;
         if (keys.has('w') || keys.has('arrowup')) my -= 1;
@@ -1157,7 +1175,7 @@ export default function Home() {
       if (currentDepth !== lastDepthMeters) { lastDepthMeters = currentDepth; setDepthMeters(currentDepth); }
       if (currentZone !== lastDepthZone) { lastDepthZone = currentZone; setDepthZone(currentZone); }
 
-      const isFeeding = !journalOpenRef.current && (keys.has('f') || touchInput.current.feeding);
+      const isFeeding = !menuOpenRef.current && (keys.has('f') || touchInput.current.feeding);
       feedCooldown -= dt;
       if (isFeeding && feedCooldown <= 0) {
         feedCooldown = 24;
@@ -1268,7 +1286,7 @@ export default function Home() {
         return patch.amount > 0.02 && distance < best.distance ? { patch, distance } : best;
       }, { patch: null, distance: Infinity });
       const isNear = nearest.distance < 105;
-      const cleaning = !journalOpenRef.current && isNear && (keys.has(' ') || touchInput.current.cleaning);
+      const cleaning = !menuOpenRef.current && isNear && (keys.has(' ') || touchInput.current.cleaning);
       if (cleaning && nearest.patch) {
         nearest.patch.amount = Math.max(0, nearest.patch.amount - 0.008 * dt);
         if (nearest.patch.amount < 0.02) nearest.patch.amount = 0;
@@ -1277,19 +1295,6 @@ export default function Home() {
       const progress = Math.round((1 - algae.reduce((sum, patch) => sum + patch.amount, 0) / algae.length) * 100);
       if (progress !== lastProgress) { lastProgress = progress; setCleaned(progress); }
       if (isNear !== lastNear) { lastNear = isNear; setNearAlgae(isNear); }
-
-      if (!journalOpenRef.current && (keys.has('x') || touchInput.current.next)) {
-        levelHold = Math.min(100, levelHold + 1.4 * dt);
-      } else {
-        levelHold = Math.max(0, levelHold - 2.5 * dt);
-      }
-      const roundedHold = Math.round(levelHold);
-      if (roundedHold !== lastLevelHold) { lastLevelHold = roundedHold; setNextProgress(roundedHold); }
-      if (levelHold >= 100) {
-        active = false;
-        setLevelIndex((current) => (current + 1) % LEVELS.length);
-        return;
-      }
 
       const ocean = ctx.createLinearGradient(0, 0, 0, rect.height);
       ocean.addColorStop(0, level.colors[0]);
@@ -1442,13 +1447,12 @@ export default function Home() {
         <i />
         <span><kbd>F</kbd> to feed</span>
         <i />
-        <span><kbd>J</kbd> journal</span>
+        <span><kbd>J</kbd> journal · <kbd>X</kbd> travel</span>
       </div>
 
-      <div className={`next-card ${nextProgress > 0 ? 'holding' : ''}`}>
-        <div className="next-copy"><kbd>X</kbd><span><small>hold to travel</small>{LEVELS[(levelIndex + 1) % LEVELS.length].name}</span></div>
-        <div className="next-track"><span style={{ width: `${nextProgress}%` }} /></div>
-      </div>
+      <button className="travel-button" type="button" onClick={openTravel} aria-label="Choose an aquarium to travel to">
+        <kbd>X</kbd><span><small>aquarium map</small>Choose habitat</span>
+      </button>
 
       <div className="touch-controls" aria-label="Touch controls">
         <div className="direction-pad">
@@ -1459,14 +1463,14 @@ export default function Home() {
         </div>
         <div className="touch-actions">
           <button className="touch-journal-button" type="button" aria-label="Open field journal" onClick={openJournal}>journal</button>
-          <button className="next-button" type="button" aria-label="Hold to travel to the next aquarium" onPointerDown={() => { touchInput.current.next = true; }} onPointerUp={() => { touchInput.current.next = false; }} onPointerCancel={() => { touchInput.current.next = false; }}>next</button>
+          <button className="next-button" type="button" aria-label="Choose an aquarium to travel to" onClick={openTravel}>travel</button>
           <button className="feed-button" type="button" aria-label="Feed nearby animals" onPointerDown={() => { touchInput.current.feeding = true; }} onPointerUp={() => { touchInput.current.feeding = false; }} onPointerCancel={() => { touchInput.current.feeding = false; }}>feed</button>
           <button className="brush-button" type="button" aria-label="Gently brush algae" onPointerDown={() => { touchInput.current.cleaning = true; }} onPointerUp={() => { touchInput.current.cleaning = false; }} onPointerCancel={() => { touchInput.current.cleaning = false; }}>brush</button>
         </div>
       </div>
 
       <div className={`completion-card ${cleaned >= 100 ? 'visible' : ''}`} role="status">
-        <span>✦</span><div><strong>{level.name} is glowing</strong><p>Stay awhile, or hold X when you feel ready to wander on.</p></div>
+        <span>✦</span><div><strong>{level.name} is glowing</strong><p>Stay awhile, or press X when you feel ready to wander on.</p></div>
       </div>
 
       <div className={`level-intro ${showLevelIntro ? 'visible' : ''}`} aria-live="polite">
@@ -1515,7 +1519,31 @@ export default function Home() {
           </section>
         </div>
       )}
-      <div className="transition-wash" style={{ opacity: nextProgress / 100 }} />
+      {travelOpen && (
+        <div className="travel-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setTravelOpen(false); }}>
+          <section className="travel-panel" role="dialog" aria-modal="true" aria-labelledby="travel-title">
+            <header className="travel-header">
+              <div><span>Aquarium map</span><h2 id="travel-title">Where would you like to swim?</h2></div>
+              <button type="button" onClick={() => setTravelOpen(false)} aria-label="Close aquarium map">×</button>
+            </header>
+            <div className="travel-grid">
+              {LEVELS.map((habitat, index) => {
+                const sightings = journal.creatures[habitat.id]?.length ?? 0;
+                const isCurrent = index === levelIndex;
+                return (
+                  <button key={habitat.id} type="button" className={isCurrent ? 'current' : ''} onClick={() => travelTo(index)}>
+                    <i className="travel-palette" style={{ background: `linear-gradient(135deg, ${habitat.colors[0]}, ${habitat.colors[2]})` }} />
+                    <span className="travel-number">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="travel-copy"><small>{habitat.moment}</small><strong>{habitat.name}</strong><em>{habitat.depthNames.join(' · ')}</em></span>
+                    <span className="travel-progress"><b>{sightings}</b>/{habitat.species.length}{isCurrent && <small>you are here</small>}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="travel-hint"><kbd>X</kbd> or <kbd>Esc</kbd> closes the map</p>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
