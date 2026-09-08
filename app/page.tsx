@@ -10,7 +10,7 @@ type Fish = {
   size: number;
   color: string;
   accent: string;
-  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi' | 'urchin' | 'otter' | 'penguin';
+  kind: 'tang' | 'clown' | 'butterfly' | 'puffer' | 'ray' | 'jelly' | 'angelfish' | 'eel' | 'seahorse' | 'shark' | 'angler' | 'koi' | 'urchin' | 'otter' | 'penguin' | 'turtle' | 'crab' | 'starfish' | 'octopus' | 'seal' | 'shrimp';
   phase: number;
   temperament: 'shy' | 'curious' | 'calm' | 'playful' | 'sleepy';
   name: string;
@@ -45,6 +45,7 @@ type JournalData = {
 
 const WORLD = { width: 2800, height: 2400 };
 const CURIOUS_FOLLOW_RADIUS = 170;
+const ANIMALS_PER_HABITAT = 100;
 
 type MotionContext = { time: number; dt: number };
 
@@ -210,6 +211,26 @@ class OtterBehavior extends SwimmingBehavior {
   }
 }
 
+class BottomWalkingBehavior extends SwimmingBehavior {
+  readonly allowsSocialResponse = false;
+
+  constructor() {
+    super({ baseSpeed: 0.2, speedVariation: 0.18, verticalVariation: 0, minTurnTime: 55, turnTimeVariation: 120, turnChance: 0.2, steering: 0.02, speedLimit: 0.42 });
+  }
+
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    animal.vy += (animal.homeY - animal.y) * 0.018 * context.dt;
+    animal.vy += Math.sin(context.time * 0.008 + animal.phase) * 0.002 * context.dt;
+  }
+}
+
+class OctopusBehavior extends HoveringBehavior {
+  protected addSpeciesMotion(animal: Fish, context: MotionContext) {
+    super.addSpeciesMotion(animal, context);
+    animal.vx += Math.sin(context.time * 0.003 + animal.phase) * 0.003 * context.dt;
+  }
+}
+
 class JellyfishBehavior extends AnimalBehavior {
   readonly allowsSocialResponse = false;
   readonly allowsFeeding = false;
@@ -290,6 +311,12 @@ const ANIMAL_BEHAVIORS: Record<Fish['kind'], AnimalBehavior> = {
   jelly: new JellyfishBehavior(),
   penguin: new DivingBehavior(),
   urchin: new StationaryBehavior(),
+  turtle: cruisingBehavior,
+  crab: new BottomWalkingBehavior(),
+  starfish: new StationaryBehavior(),
+  octopus: new OctopusBehavior(),
+  seal: new OtterBehavior(),
+  shrimp: dartingBehavior,
 };
 
 const LEVELS: Level[] = [
@@ -307,12 +334,15 @@ const LEVELS: Level[] = [
       { kind: 'butterfly', name: 'Neon tetra', color: '#7fd3cd', accent: '#db6f70' },
       { kind: 'puffer', name: 'Golden gourami', color: '#e9bd62', accent: '#fff0b4' },
       { kind: 'angelfish', name: 'Blue discus', color: '#5a9dae', accent: '#dce9a6', scale: 1.15 },
-      { kind: 'tang', name: 'Glass catfish', color: '#b9d9d2', accent: '#e5f2e8' },
       { kind: 'koi', name: 'Kohaku koi', color: '#fff0d3', accent: '#e47759', scale: 1.3 },
       { kind: 'angelfish', name: 'Marble angelfish', color: '#dfdbbd', accent: '#66736e' },
       { kind: 'tang', name: 'Peppered cory', color: '#9b9880', accent: '#d6cba4' },
       { kind: 'clown', name: 'Fancy guppy', color: '#d97988', accent: '#75b4ae' },
       { kind: 'butterfly', name: 'Boesemani rainbowfish', color: '#6fa8b9', accent: '#e5a65b' },
+      { kind: 'turtle', name: 'Red-eared slider', color: '#657b54', accent: '#d29a55', scale: 1.05 },
+      { kind: 'shrimp', name: 'Amano shrimp', color: '#b5c9b7', accent: '#5f8276', scale: 0.75 },
+      { kind: 'crab', name: 'Blue crayfish', color: '#5b87a2', accent: '#b8d5d2', scale: 0.9 },
+      { kind: 'otter', name: 'River otter', color: '#675445', accent: '#d8bd91', scale: 1.15 },
     ],
   },
   {
@@ -334,6 +364,11 @@ const LEVELS: Level[] = [
       { kind: 'ray', name: 'Mangrove whipray', color: '#6d7b68', accent: '#cad5b3' },
       { kind: 'puffer', name: 'Green spotted puffer', color: '#98a866', accent: '#e8d578' },
       { kind: 'eel', name: 'Freshwater moray', color: '#647359', accent: '#b7bd7e' },
+      { kind: 'crab', name: 'Fiddler crab', color: '#b56f4e', accent: '#efb96d', scale: 0.9 },
+      { kind: 'crab', name: 'Mangrove tree crab', color: '#777a52', accent: '#c0b77b', scale: 0.85 },
+      { kind: 'turtle', name: 'Green sea turtle', color: '#668169', accent: '#c6bc7f', scale: 1.2 },
+      { kind: 'shrimp', name: 'Snapping shrimp', color: '#d88b6f', accent: '#f3d3a3', scale: 0.8 },
+      { kind: 'octopus', name: 'Mangrove octopus', color: '#9b665b', accent: '#e2ad8d' },
     ],
   },
   {
@@ -357,6 +392,11 @@ const LEVELS: Level[] = [
       { kind: 'eel', name: 'Green moray', color: '#6c8b68', accent: '#c4c887', scale: 1.25 },
       { kind: 'shark', name: 'Whitetip reef shark', color: '#7896a0', accent: '#e0e8df', scale: 1.35 },
       { kind: 'koi', name: 'Cleaner wrasse', color: '#547eb8', accent: '#72d7c5' },
+      { kind: 'turtle', name: 'Loggerhead turtle', color: '#87745a', accent: '#d4b679', scale: 1.25 },
+      { kind: 'crab', name: 'Hermit crab', color: '#ae715a', accent: '#e0c285', scale: 0.85 },
+      { kind: 'shrimp', name: 'Cleaner shrimp', color: '#df796c', accent: '#f7e6d0', scale: 0.75 },
+      { kind: 'octopus', name: 'Common octopus', color: '#a46f67', accent: '#dfb494', scale: 1.05 },
+      { kind: 'starfish', name: 'Ochre sea star', color: '#c98350', accent: '#f0c17e', scale: 0.9 },
     ],
   },
   {
@@ -380,6 +420,11 @@ const LEVELS: Level[] = [
       { kind: 'ray', name: 'Spotted eagle ray', color: '#476f85', accent: '#d9e9de', scale: 1.35 },
       { kind: 'eel', name: 'Snowflake moray', color: '#d6c9a5', accent: '#5b5e59', scale: 1.15 },
       { kind: 'shark', name: 'Caribbean reef shark', color: '#6c8d9d', accent: '#e0e8df', scale: 1.3 },
+      { kind: 'turtle', name: 'Hawksbill turtle', color: '#6f7a55', accent: '#d6ad68', scale: 1.2 },
+      { kind: 'starfish', name: 'Blue sea star', color: '#538bb9', accent: '#a9d3d5' },
+      { kind: 'crab', name: 'Decorator crab', color: '#9b8067', accent: '#d7bf8c', scale: 0.9 },
+      { kind: 'shrimp', name: 'Coral banded shrimp', color: '#d9625f', accent: '#f7eee0', scale: 0.8 },
+      { kind: 'octopus', name: 'Day octopus', color: '#8f666d', accent: '#d7b081' },
     ],
   },
   {
@@ -404,6 +449,13 @@ const LEVELS: Level[] = [
       { kind: 'koi', name: 'California sheephead', color: '#b66f69', accent: '#303f48', scale: 1.15 },
       { kind: 'urchin', name: 'Purple sea urchin', color: '#745780', accent: '#c3a8cc', scale: 0.9 },
       { kind: 'otter', name: 'Southern sea otter', color: '#705847', accent: '#dfc49c', scale: 1.25 },
+      { kind: 'urchin', name: 'Red sea urchin', color: '#884f53', accent: '#d89a88' },
+      { kind: 'urchin', name: 'Green sea urchin', color: '#58755f', accent: '#a9c489', scale: 0.85 },
+      { kind: 'starfish', name: 'Sunflower sea star', color: '#be8054', accent: '#e8bd73', scale: 1.2 },
+      { kind: 'octopus', name: 'Giant Pacific octopus', color: '#9b5d55', accent: '#db9b7a', scale: 1.25 },
+      { kind: 'crab', name: 'Northern kelp crab', color: '#718052', accent: '#b6aa70' },
+      { kind: 'seal', name: 'Harbor seal', color: '#78807b', accent: '#d2d6c9', scale: 1.3 },
+      { kind: 'shrimp', name: 'Spot prawn', color: '#c77768', accent: '#f1c7a9', scale: 0.8 },
     ],
   },
   {
@@ -425,6 +477,11 @@ const LEVELS: Level[] = [
       { kind: 'jelly', name: 'Crystal jelly', color: '#c1e0ec', accent: '#e7f8f5' },
       { kind: 'eel', name: 'Ribbonfish', color: '#a8c2ca', accent: '#7896bc', scale: 1.45 },
       { kind: 'angelfish', name: 'Ocean sunfish', color: '#87999e', accent: '#cad1c7', scale: 1.45 },
+      { kind: 'turtle', name: 'Leatherback turtle', color: '#566e78', accent: '#a9c1bd', scale: 1.4 },
+      { kind: 'turtle', name: 'Olive ridley turtle', color: '#71806b', accent: '#c5bd87', scale: 1.2 },
+      { kind: 'seal', name: 'Northern fur seal', color: '#625f59', accent: '#c6bda9', scale: 1.35 },
+      { kind: 'crab', name: 'Pelagic red crab', color: '#bd6559', accent: '#f0a282', scale: 0.8 },
+      { kind: 'octopus', name: 'Glass squid', color: '#a7c8d1', accent: '#d8eee9' },
     ],
   },
   {
@@ -447,6 +504,11 @@ const LEVELS: Level[] = [
       { kind: 'jelly', name: 'Lion’s mane jelly', color: '#c89d8f', accent: '#f1d4bd', scale: 1.2 },
       { kind: 'koi', name: 'Lumpsucker', color: '#7f9a94', accent: '#d0cfaa' },
       { kind: 'penguin', name: 'Gentoo penguin', color: '#293b44', accent: '#f4eee0', scale: 1.2 },
+      { kind: 'seal', name: 'Weddell seal', color: '#667985', accent: '#d7ded8', scale: 1.35 },
+      { kind: 'seal', name: 'Harp seal', color: '#c3d0cf', accent: '#566d78', scale: 1.25 },
+      { kind: 'shrimp', name: 'Antarctic krill', color: '#d98d83', accent: '#f2ccc0', scale: 0.7 },
+      { kind: 'starfish', name: 'Antarctic sea star', color: '#b8877a', accent: '#e2c5aa', scale: 1.1 },
+      { kind: 'crab', name: 'Antarctic king crab', color: '#9b6c64', accent: '#d7a887', scale: 1.05 },
     ],
   },
   {
@@ -470,6 +532,11 @@ const LEVELS: Level[] = [
       { kind: 'tang', name: 'Pacific viperfish', color: '#435b70', accent: '#c5e9b7' },
       { kind: 'angelfish', name: 'Telescopefish', color: '#4c506d', accent: '#d190b4' },
       { kind: 'eel', name: 'Silver oarfish', color: '#a7b7c7', accent: '#d86575', scale: 1.65 },
+      { kind: 'octopus', name: 'Dumbo octopus', color: '#9d86aa', accent: '#d9c2df', scale: 1.1 },
+      { kind: 'octopus', name: 'Vampire squid', color: '#7c4058', accent: '#d57686' },
+      { kind: 'crab', name: 'Giant isopod', color: '#687a82', accent: '#b9c8c3', scale: 1.05 },
+      { kind: 'shrimp', name: 'Deep-sea shrimp', color: '#b05762', accent: '#ed9293', scale: 0.8 },
+      { kind: 'starfish', name: 'Brittle star', color: '#82749b', accent: '#c0b2d5' },
     ],
   },
   {
@@ -491,6 +558,11 @@ const LEVELS: Level[] = [
       { kind: 'jelly', name: 'Deep red jelly', color: '#b45b6a', accent: '#ef9a9f' },
       { kind: 'ray', name: 'Abyssal skate', color: '#323a4c', accent: '#88c4b6' },
       { kind: 'puffer', name: 'Blob sculpin', color: '#8b6e78', accent: '#d5a9a8' },
+      { kind: 'crab', name: 'Yeti crab', color: '#d8d0b7', accent: '#f3e5bf', scale: 1.05 },
+      { kind: 'shrimp', name: 'Vent shrimp', color: '#c8c2b2', accent: '#ed805d', scale: 0.8 },
+      { kind: 'crab', name: 'Squat lobster', color: '#a95155', accent: '#e18f78' },
+      { kind: 'octopus', name: 'Vent octopus', color: '#8c727b', accent: '#c8a5ad' },
+      { kind: 'starfish', name: 'Abyssal brittle star', color: '#756c8a', accent: '#b7a9c7' },
     ],
   },
 ];
@@ -530,10 +602,188 @@ function roundedRect(
 
 function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   const direction = fish.vx >= 0 ? 1 : -1;
-  const bob = Math.sin(time * 0.002 + fish.phase) * 3;
+  const bob = ['urchin', 'starfish', 'crab'].includes(fish.kind) ? 0 : Math.sin(time * 0.002 + fish.phase) * 3;
   ctx.save();
   ctx.translate(fish.x, fish.y + bob);
   ctx.scale(direction, 1);
+
+  if (fish.kind === 'turtle') {
+    const flap = Math.sin(time * 0.006 + fish.phase) * 0.22;
+    ctx.fillStyle = fish.accent;
+    ctx.save();
+    ctx.rotate(flap);
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.05, fish.size * 0.35, fish.size * 0.42, fish.size * 0.13, 0.25, 0, Math.PI * 2);
+    ctx.ellipse(-fish.size * 0.12, -fish.size * 0.35, fish.size * 0.36, fish.size * 0.12, -0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, fish.size * 0.7, fish.size * 0.43, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, fish.size * 0.5, fish.size * 0.31, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.68, 0, fish.size * 0.27, fish.size * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#223c3e';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.79, -fish.size * 0.06, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'crab') {
+    const scuttle = Math.sin(time * 0.012 + fish.phase) * fish.size * 0.08;
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo((i - 1) * fish.size * 0.22, side * fish.size * 0.2);
+        ctx.lineTo((i - 1) * fish.size * 0.3 + scuttle, side * fish.size * (0.5 + i * 0.05));
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, fish.size * 0.58, fish.size * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.38, -fish.size * 0.18);
+    ctx.lineTo(fish.size * 0.72, -fish.size * 0.44);
+    ctx.moveTo(-fish.size * 0.38, -fish.size * 0.18);
+    ctx.lineTo(-fish.size * 0.72, -fish.size * 0.44);
+    ctx.stroke();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.76, -fish.size * 0.47, fish.size * 0.16, 0, Math.PI * 2);
+    ctx.arc(-fish.size * 0.76, -fish.size * 0.47, fish.size * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#20353c';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.2, -fish.size * 0.2, 2, 0, Math.PI * 2);
+    ctx.arc(-fish.size * 0.2, -fish.size * 0.2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'starfish') {
+    ctx.rotate(Math.sin(time * 0.0003 + fish.phase) * 0.08);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const radius = i % 2 === 0 ? fish.size * 0.72 : fish.size * 0.28;
+      const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    for (let i = 0; i < 7; i += 1) {
+      const angle = fish.phase + i * 2.1;
+      ctx.beginPath();
+      ctx.arc(Math.cos(angle) * fish.size * 0.24, Math.sin(angle) * fish.size * 0.24, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'octopus') {
+    const curl = Math.sin(time * 0.006 + fish.phase) * fish.size * 0.16;
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = fish.size * 0.13;
+    ctx.lineCap = 'round';
+    for (let i = -2; i <= 2; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(i * fish.size * 0.16, fish.size * 0.18);
+      ctx.bezierCurveTo(i * fish.size * 0.26, fish.size * 0.55, -i * fish.size * 0.1 + curl, fish.size * 0.7, i * fish.size * 0.22, fish.size * 0.88);
+      ctx.stroke();
+    }
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(0, -fish.size * 0.12, fish.size * 0.52, fish.size * 0.48, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.2, -fish.size * 0.12, fish.size * 0.12, fish.size * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#20353c';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.22, -fish.size * 0.14, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'seal') {
+    ctx.rotate(Math.sin(time * 0.0012 + fish.phase) * 0.08);
+    ctx.fillStyle = fish.color;
+    ctx.beginPath();
+    ctx.ellipse(-fish.size * 0.08, 0, fish.size * 0.82, fish.size * 0.34, 0, 0, Math.PI * 2);
+    ctx.ellipse(fish.size * 0.62, -fish.size * 0.02, fish.size * 0.36, fish.size * 0.31, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-fish.size * 0.75, 0);
+    ctx.lineTo(-fish.size * 1.15, -fish.size * 0.3);
+    ctx.lineTo(-fish.size * 1.02, 0);
+    ctx.lineTo(-fish.size * 1.15, fish.size * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = fish.accent;
+    ctx.beginPath();
+    ctx.ellipse(fish.size * 0.69, fish.size * 0.05, fish.size * 0.19, fish.size * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#21343a';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.84, fish.size * 0.01, 2.5, 0, Math.PI * 2);
+    ctx.arc(fish.size * 0.68, -fish.size * 0.11, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (fish.kind === 'shrimp') {
+    const flick = Math.sin(time * 0.015 + fish.phase) * fish.size * 0.08;
+    ctx.strokeStyle = fish.color;
+    ctx.lineWidth = fish.size * 0.24;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(-fish.size * 0.05, 0, fish.size * 0.48, Math.PI * 1.18, Math.PI * 0.25, false);
+    ctx.stroke();
+    ctx.strokeStyle = fish.accent;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(-fish.size * 0.35 + i * fish.size * 0.16, -fish.size * 0.16);
+      ctx.lineTo(-fish.size * 0.3 + i * fish.size * 0.16, fish.size * 0.17);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(fish.size * 0.36, -fish.size * 0.08);
+    ctx.quadraticCurveTo(fish.size * 0.85, -fish.size * 0.5 + flick, fish.size * 1.12, -fish.size * 0.32);
+    ctx.moveTo(fish.size * 0.36, -fish.size * 0.04);
+    ctx.quadraticCurveTo(fish.size * 0.88, -fish.size * 0.2 - flick, fish.size * 1.08, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#21343a';
+    ctx.beginPath();
+    ctx.arc(fish.size * 0.35, -fish.size * 0.12, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
 
   if (fish.kind === 'urchin') {
     ctx.strokeStyle = fish.accent;
@@ -1466,25 +1716,32 @@ export default function Home() {
     const keys = new Set<string>();
     const species = level.species;
     const personalities: Fish['temperament'][] = ['curious', 'calm', 'playful', 'shy', 'sleepy', 'calm'];
-    const urchinPerches = [
+    const benthicPerches = [
       { x: 520, y: 720 },
       { x: 2220, y: 1260 },
       { x: 760, y: 1715 },
       { x: 1810, y: 2040 },
       { x: 2520, y: WORLD.height - 175 },
+      { x: 1180, y: 835 },
+      { x: 1540, y: 1390 },
+      { x: 360, y: 1980 },
+      { x: 1320, y: WORLD.height - 180 },
+      { x: 2300, y: 1870 },
     ];
-    const fish: Fish[] = Array.from({ length: 40 }, (_, i) => {
+    const fish: Fish[] = Array.from({ length: ANIMALS_PER_HABITAT }, (_, i) => {
       const animal = species[i % species.length];
-      const isUrchin = animal.kind === 'urchin';
+      const isBenthic = ['urchin', 'starfish', 'crab'].includes(animal.kind);
+      const isStationary = ['urchin', 'starfish'].includes(animal.kind);
       const isPenguin = animal.kind === 'penguin';
-      const perch = urchinPerches[i % urchinPerches.length];
-      const largeAnimal = ['ray', 'shark', 'otter', 'penguin'].includes(animal.kind);
+      const perch = benthicPerches[i % benthicPerches.length];
+      const largeAnimal = ['ray', 'shark', 'otter', 'penguin', 'turtle', 'octopus', 'seal'].includes(animal.kind);
+      const smallAnimal = animal.kind === 'shrimp';
       return {
-        x: isUrchin ? perch.x : 180 + ((i * 347) % 2450),
-        y: isUrchin ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
-        vx: isUrchin ? 0 : (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
+        x: isBenthic ? perch.x + ((i * 41) % 90) - 45 : 180 + ((i * 347) % 2450),
+        y: isBenthic ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+        vx: isStationary ? 0 : (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
         vy: 0,
-        size: (largeAnimal ? 42 + (i % 3) * 6 : isUrchin ? 26 + (i % 3) * 3 : 20 + (i % 5) * 3.5) * (animal.scale ?? 1),
+        size: (largeAnimal ? 42 + (i % 3) * 6 : isBenthic ? 26 + (i % 3) * 3 : smallAnimal ? 17 + (i % 3) * 2 : 20 + (i % 5) * 3.5) * (animal.scale ?? 1),
         color: animal.color,
         accent: animal.accent,
         kind: animal.kind,
@@ -1494,7 +1751,7 @@ export default function Home() {
         happy: 0,
         biteCooldown: 0,
         diveClock: (i * 0.17) % 1,
-        homeY: isUrchin ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+        homeY: isBenthic ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
         turnTimer: 35 + ((i * 47) % 130),
         targetVx: (i % 2 ? -1 : 1) * (0.3 + (i % 4) * 0.08),
         targetVy: ((i % 5) - 2) * 0.08,
@@ -1813,7 +2070,7 @@ export default function Home() {
       <aside className="field-card" aria-live="polite">
         <span className="eyebrow">Field notes</span>
         <strong>{discovered.length}<small> / {level.species.length} friends met</small></strong>
-        <p>40 animals · 3 depth zones{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
+        <p>{ANIMALS_PER_HABITAT} animals · 3 depth zones{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
         <div className="species-dots" aria-label={`${discovered.length} of ${level.species.length} species discovered`}>
           {level.species.map(({ name }) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
         </div>
