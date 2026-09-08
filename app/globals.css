@@ -52,11 +52,6 @@ button { font: inherit; }
 .creature-label.visible { opacity: 1; transform: translate(-50%, 0); }
 .creature-label span { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: .18em; opacity: .62; }
 .creature-label strong { display: block; margin-top: 2px; font-family: Georgia, serif; font-size: 17px; font-weight: 500; }
-.place-toast { position: absolute; z-index: 5; top: 50%; left: 50%; display: grid; min-width: 260px; padding: 15px 20px; opacity: 0; transform: translate(-50%, -35%); border: 1px solid rgba(255,248,196,.52); border-radius: 20px; background: rgba(12,61,67,.78); color: #fff9df; text-align: center; box-shadow: 0 18px 55px rgba(3,35,45,.24); backdrop-filter: blur(12px); transition: .45s cubic-bezier(.16,1,.3,1); pointer-events: none; }
-.place-toast.visible { opacity: 1; transform: translate(-50%, -50%); }
-.place-toast span { color: #f1d67c; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; }
-.place-toast strong { margin-top: 4px; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
-.place-toast small { margin-top: 3px; color: rgba(255,249,223,.65); font-size: 10px; }
 .clean-prompt { position: absolute; z-index: 3; left: 50%; bottom: 98px; display: flex; align-items: center; gap: 10px; opacity: 0; transform: translate(-50%, 10px); transition: .2s ease; padding: 9px 14px 9px 9px; border: 1px solid rgba(255,255,255,.36); border-radius: 999px; background: rgba(247,248,222,.9); box-shadow: 0 9px 28px rgba(7,51,60,.2); color: #31575b; font-size: 12px; pointer-events: none; }
 .clean-prompt.visible { opacity: 1; transform: translate(-50%, 0); }
 .feed-prompt { position: absolute; z-index: 3; left: 50%; bottom: 146px; display: flex; align-items: center; gap: 9px; opacity: 0; transform: translate(-50%, 9px); padding: 10px 15px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; background: rgba(20, 74, 78, .72); color: #fff9df; box-shadow: 0 10px 30px rgba(5,42,53,.2); backdrop-filter: blur(10px); font-size: 12px; transition: .22s ease; pointer-events: none; }
@@ -95,7 +90,6 @@ kbd { display: inline-grid; min-width: 27px; height: 25px; place-items: center; 
 .journal-totals p { display: flex; align-items: center; gap: 8px; margin: 0; }
 .journal-totals strong { font-family: Georgia, serif; font-size: 23px; font-weight: 500; }
 .journal-totals span { color: #708078; font-size: 10px; line-height: 1.15; }
-.journal-totals i { width: 1px; height: 26px; background: rgba(47,85,77,.15); }
 .journal-tabs { display: flex; gap: 7px; overflow-x: auto; padding: 12px 26px 10px; scrollbar-width: thin; }
 .journal-tabs button { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid rgba(45,86,78,.14); border-radius: 999px; background: rgba(255,255,255,.35); color: #6c7e75; cursor: pointer; font-size: 11px; }
 .journal-tabs button span { display: none; }
@@ -115,11 +109,10 @@ kbd { display: inline-grid; min-width: 27px; height: 25px; place-items: center; 
 .journal-list li strong { display: block; overflow: hidden; font-family: Georgia, serif; font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .journal-list li small { display: block; margin-top: 2px; color: #839087; font-size: 9px; }
 .journal-swatch { flex: 0 0 22px; width: 22px; height: 22px; border: 1px solid rgba(63,94,85,.15); border-radius: 50% 48% 46% 50%; background: rgba(72,92,85,.09); }
-.place-list { grid-template-columns: 1fr; }
-.place-list li > span { display: grid; flex: 0 0 25px; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: rgba(93,116,93,.09); color: rgba(78,102,94,.28); }
-.place-list li.found > span { background: #e5cf74; color: #fffbe7; }
-.place-list li strong { white-space: normal; }
-.place-list li small { line-height: 1.3; }
+.habitat-layer-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.habitat-layer-list li { display: flex; min-height: 43px; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid rgba(70,112,97,.16); border-radius: 12px; background: rgba(255,255,255,.4); }
+.habitat-layer-list li span { display: grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: #d9d3a4; color: #526e67; font-size: 9px; }
+.habitat-layer-list li strong { font-family: Georgia, serif; font-size: 12px; font-weight: 500; }
 .personality-note { margin-top: 13px; padding: 13px 14px; border-radius: 14px; background: rgba(91,132,111,.1); }
 .personality-note p { margin: 5px 0 0; color: #5e746b; font-family: Georgia, serif; font-size: 11px; line-height: 1.45; }
 .personality-note b { color: #3f6b62; font-weight: 600; }

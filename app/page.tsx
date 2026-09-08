@@ -22,7 +22,7 @@ type Algae = { x: number; y: number; amount: number; size: number };
 type FoodPellet = { x: number; y: number; vx: number; vy: number; life: number };
 
 type Level = {
-  id: 'freshwater' | 'mangrove' | 'saltwater' | 'kelp' | 'openocean' | 'polar' | 'deepsea' | 'vents';
+  id: 'freshwater' | 'mangrove' | 'saltwater' | 'reef' | 'kelp' | 'openocean' | 'polar' | 'deepsea' | 'vents';
   name: string;
   moment: string;
   note: string;
@@ -34,10 +34,8 @@ type Level = {
   species: Array<{ kind: Fish['kind']; name: string; color: string; accent: string; scale?: number }>;
 };
 
-type Landmark = { name: string; note: string; x: number; y: number; radius: number };
 type JournalData = {
   creatures: Partial<Record<Level['id'], string[]>>;
-  places: Partial<Record<Level['id'], string[]>>;
 };
 
 const WORLD = { width: 2800, height: 2400 };
@@ -88,10 +86,10 @@ const LEVELS: Level[] = [
   },
   {
     id: 'saltwater',
-    name: 'Sunlit Reef',
+    name: 'Saltwater Lagoon',
     moment: 'Noon',
-    note: 'Brush the coral shelves until they glow.',
-    depthNames: ['Coral crest', 'Blue reef wall', 'Sandy lagoon'],
+    note: 'Brush the warm lagoon stones until they glow.',
+    depthNames: ['Tidal garden', 'Bluewater shelf', 'Sandy lagoon'],
     maxDepth: 90,
     colors: ['#53b8bd', '#247f8b', '#145567'],
     floor: '#326d75',
@@ -107,6 +105,29 @@ const LEVELS: Level[] = [
       { kind: 'eel', name: 'Green moray', color: '#6c8b68', accent: '#c4c887', scale: 1.25 },
       { kind: 'shark', name: 'Whitetip reef shark', color: '#7896a0', accent: '#e0e8df', scale: 1.35 },
       { kind: 'koi', name: 'Cleaner wrasse', color: '#547eb8', accent: '#72d7c5' },
+    ],
+  },
+  {
+    id: 'reef',
+    name: 'Rainbow Reef',
+    moment: 'Bright Afternoon',
+    note: 'Care for the coral towers and their colorful neighbors.',
+    depthNames: ['Reef crown', 'Coral canyons', 'Sheltered reef floor'],
+    maxDepth: 120,
+    colors: ['#50c4c1', '#218da0', '#175c76'],
+    floor: '#39777a',
+    growth: '74, 126, 79',
+    species: [
+      { kind: 'butterfly', name: 'Royal gramma', color: '#7155a9', accent: '#f0cf59' },
+      { kind: 'clown', name: 'Firefish goby', color: '#f2eee2', accent: '#e97f69' },
+      { kind: 'angelfish', name: 'Emperor angelfish', color: '#346bb2', accent: '#f2d45e', scale: 1.15 },
+      { kind: 'koi', name: 'Rainbow parrotfish', color: '#54b7a0', accent: '#e98175', scale: 1.2 },
+      { kind: 'puffer', name: 'Picasso triggerfish', color: '#d8bf76', accent: '#477b8a' },
+      { kind: 'tang', name: 'Purple tang', color: '#6650a8', accent: '#f2d45d' },
+      { kind: 'jelly', name: 'Caribbean reef squid', color: '#d999ad', accent: '#8fe2d2' },
+      { kind: 'ray', name: 'Spotted eagle ray', color: '#476f85', accent: '#d9e9de', scale: 1.35 },
+      { kind: 'eel', name: 'Snowflake moray', color: '#d6c9a5', accent: '#5b5e59', scale: 1.15 },
+      { kind: 'shark', name: 'Caribbean reef shark', color: '#6c8d9d', accent: '#e0e8df', scale: 1.3 },
     ],
   },
   {
@@ -219,63 +240,14 @@ const LEVELS: Level[] = [
   },
 ];
 
-const LANDMARK_NOTES: Record<Level['id'], Array<{ name: string; note: string }>> = {
-  freshwater: [
-    { name: 'Willow-root nook', note: 'A shaded pocket beneath the old roots.' },
-    { name: 'Sunken teacup', note: 'Tiny fish have made a porcelain cup their shelter.' },
-    { name: 'Riverstone arch', note: 'The current hums softly through this mossy doorway.' },
-  ],
-  mangrove: [
-    { name: 'Rootlace tunnel', note: 'A narrow path woven from patient mangrove roots.' },
-    { name: 'Nursery bowl', note: 'Young fish rest here when the tide grows busy.' },
-    { name: 'Seagrass window', note: 'A round opening overlooking the quiet floor.' },
-  ],
-  saltwater: [
-    { name: 'Coral keyhole', note: 'A bright passage hidden behind fan coral.' },
-    { name: 'Shellkeeper grotto', note: 'Empty shells gather here in a perfect little ring.' },
-    { name: 'Lagoon window', note: 'A calm blue view through the oldest reef shelf.' },
-  ],
-  kelp: [
-    { name: 'Green cathedral', note: 'Tall fronds meet overhead like a leafy roof.' },
-    { name: 'Otter-stone circle', note: 'Smooth stones lie where playful visitors once rested.' },
-    { name: 'Holdfast hollow', note: 'A sheltered room beneath the swaying canopy.' },
-  ],
-  openocean: [
-    { name: 'Drifting ribbon', note: 'A long current carries silver bubbles in a spiral.' },
-    { name: 'Blue silence', note: 'A still pocket where the open water seems to pause.' },
-    { name: 'Traveler’s marker', note: 'A lonely stone visited by creatures passing through.' },
-  ],
-  polar: [
-    { name: 'Iceglass alcove', note: 'The ceiling scatters pale blue light like stars.' },
-    { name: 'Silver shelf', note: 'A sheltered ledge beneath an ancient sheet of ice.' },
-    { name: 'Glacial doorway', note: 'A rounded entrance polished smooth by cold currents.' },
-  ],
-  deepsea: [
-    { name: 'Lantern hollow', note: 'Small living lights blink from a hidden hollow.' },
-    { name: 'Whispering drop', note: 'The trench falls away into a deep and gentle hush.' },
-    { name: 'Star-silt cave', note: 'Every movement wakes a cloud of sparkling sediment.' },
-  ],
-  vents: [
-    { name: 'Warmwater pocket', note: 'A quiet refuge warmed by the mineral garden.' },
-    { name: 'Chimney passage', note: 'A secret route between two towering black smokers.' },
-    { name: 'Ember nursery', note: 'Tiny creatures gather around the soft orange glow.' },
-  ],
-};
-
-const LANDMARK_POSITIONS = [
-  { x: 360, y: 760, radius: 112 },
-  { x: 2310, y: 1435, radius: 125 },
-  { x: 760, y: 2110, radius: 120 },
-] as const;
-
 const JOURNAL_KEY = 'drift-and-dapple-field-journal-v1';
-const EMPTY_JOURNAL: JournalData = { creatures: {}, places: {} };
+const EMPTY_JOURNAL: JournalData = { creatures: {} };
 
 function readJournal(): JournalData {
   if (typeof window === 'undefined') return EMPTY_JOURNAL;
   try {
     const saved = JSON.parse(window.localStorage.getItem(JOURNAL_KEY) ?? 'null') as JournalData | null;
-    return saved?.creatures && saved?.places ? saved : EMPTY_JOURNAL;
+    return saved?.creatures ? { creatures: saved.creatures } : EMPTY_JOURNAL;
   } catch {
     return EMPTY_JOURNAL;
   }
@@ -287,13 +259,6 @@ function writeJournal(journal: JournalData) {
   } catch {
     // Exploration still works when storage is unavailable (for example, in private browsing).
   }
-}
-
-function getLandmarks(level: Level): Landmark[] {
-  return LANDMARK_NOTES[level.id].map((landmark, index) => ({
-    ...landmark,
-    ...LANDMARK_POSITIONS[index],
-  }));
 }
 
 function roundedRect(
@@ -794,10 +759,10 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
         }
       }
     }
-  } else if (level.id === 'saltwater') {
-    for (let x = 80; x < WORLD.width; x += 190) {
+  } else if (level.id === 'saltwater' || level.id === 'reef') {
+    for (let x = 80; x < WORLD.width; x += level.id === 'reef' ? 140 : 190) {
       const h = 70 + ((x * 17) % 100);
-      ctx.strokeStyle = x % 380 ? '#3e8f7e' : '#7fae72';
+      ctx.strokeStyle = level.id === 'reef' ? (x % 280 ? '#3f9b82' : '#86b45d') : (x % 380 ? '#3e8f7e' : '#7fae72');
       ctx.lineWidth = 13;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -818,7 +783,7 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
     }
   }
 
-  if (level.id === 'freshwater' || level.id === 'mangrove' || level.id === 'saltwater') {
+  if (level.id === 'freshwater' || level.id === 'mangrove' || level.id === 'saltwater' || level.id === 'reef') {
     const gardens = [520, 1130, 1620, 2470];
     gardens.forEach((gardenX, gardenIndex) => {
       const gardenY = gardenIndex === 1 ? 780 : gardenIndex === 2 ? 1760 : floorY;
@@ -826,7 +791,7 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
         const x = gardenX + blade * 15;
         const h = 72 + (blade % 3) * 24;
         const sway = Math.sin(time * 0.001 + blade + gardenIndex) * 12;
-        ctx.strokeStyle = level.id === 'saltwater' ? 'rgba(113, 157, 92, .72)' : 'rgba(92, 132, 78, .76)';
+        ctx.strokeStyle = level.id === 'saltwater' || level.id === 'reef' ? 'rgba(113, 157, 92, .72)' : 'rgba(92, 132, 78, .76)';
         ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.moveTo(x, gardenY);
@@ -836,10 +801,14 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
     });
   }
 
-  if (level.id !== 'saltwater') return;
+  if (level.id !== 'saltwater' && level.id !== 'reef') return;
   const coral = [
     [310, floorY, '#f18b78'], [740, 780, '#e6a96f'], [1230, floorY, '#d87882'],
     [1700, 2050, '#d799bd'], [2240, 1280, '#ef9a75'], [2600, floorY, '#ddbb6a'],
+    ...(level.id === 'reef' ? [
+      [520, floorY, '#d979ac'], [980, floorY, '#f0b759'], [1450, floorY, '#e88069'],
+      [1940, floorY, '#b982bd'], [2440, floorY, '#ef8d8a'],
+    ] as const : []),
   ] as const;
   coral.forEach(([x, y, color]) => {
     ctx.strokeStyle = color;
@@ -853,40 +822,6 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
     ctx.moveTo(x, y - 35);
     ctx.lineTo(x + 35, y - 68);
     ctx.stroke();
-  });
-}
-
-function drawHiddenAreas(
-  ctx: CanvasRenderingContext2D,
-  landmarks: Landmark[],
-  found: Set<string>,
-  time: number,
-) {
-  landmarks.forEach((landmark, index) => {
-    const pulse = 0.5 + Math.sin(time * 0.002 + index * 2.1) * 0.18;
-    ctx.fillStyle = 'rgba(8, 38, 47, .58)';
-    ctx.beginPath();
-    ctx.ellipse(landmark.x, landmark.y, 72, 54, -0.08, Math.PI, Math.PI * 2);
-    ctx.lineTo(landmark.x + 72, landmark.y + 35);
-    ctx.lineTo(landmark.x - 72, landmark.y + 35);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = found.has(landmark.name)
-      ? `rgba(248, 222, 126, ${0.5 + pulse * 0.4})`
-      : `rgba(202, 232, 201, ${0.2 + pulse * 0.18})`;
-    ctx.lineWidth = found.has(landmark.name) ? 5 : 3;
-    ctx.beginPath();
-    ctx.arc(landmark.x, landmark.y + 10, 72, Math.PI, Math.PI * 2);
-    ctx.stroke();
-
-    for (let sparkle = 0; sparkle < 4; sparkle += 1) {
-      const angle = time * 0.0008 + sparkle * 1.57 + index;
-      ctx.fillStyle = found.has(landmark.name) ? 'rgba(255, 231, 143, .76)' : 'rgba(210, 239, 220, .34)';
-      ctx.beginPath();
-      ctx.arc(landmark.x + Math.cos(angle) * 48, landmark.y - 14 + Math.sin(angle) * 25, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
   });
 }
 
@@ -912,8 +847,6 @@ export default function Home() {
   const [journal, setJournal] = useState<JournalData>(EMPTY_JOURNAL);
   const [journalOpen, setJournalOpen] = useState(false);
   const [journalPage, setJournalPage] = useState(0);
-  const [foundPlaces, setFoundPlaces] = useState<string[]>([]);
-  const [placeMessage, setPlaceMessage] = useState('');
   const level = LEVELS[levelIndex];
 
   const setTouchDirection = (x: number, y: number) => {
@@ -991,8 +924,6 @@ export default function Home() {
     journalRef.current = savedJournal;
     setJournal(savedJournal);
     setDiscovered(savedJournal.creatures[level.id] ?? []);
-    setFoundPlaces(savedJournal.places[level.id] ?? []);
-    setPlaceMessage('');
     setNextProgress(0);
     setShowLevelIntro(true);
     setDepthMeters(0);
@@ -1021,7 +952,6 @@ export default function Home() {
       happy: 0,
       biteCooldown: 0,
     }));
-    const landmarks = getLandmarks(level);
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
       { x: 1080, y: 680, size: 52, amount: 1 },
@@ -1049,8 +979,6 @@ export default function Home() {
     let feedNotice = 0;
     let snackCount = 0;
     const seen = new Set(savedJournal.creatures[level.id] ?? []);
-    const foundLandmarks = new Set(savedJournal.places[level.id] ?? []);
-    let placeNotice = 0;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -1212,23 +1140,6 @@ export default function Home() {
         : '';
       if (creatureLabel !== lastCreature) { lastCreature = creatureLabel; setNearbyCreature(creatureLabel); }
 
-      const nearbyLandmark = landmarks.find((landmark) => Math.hypot(landmark.x - player.x, landmark.y - player.y) < landmark.radius);
-      if (nearbyLandmark && !foundLandmarks.has(nearbyLandmark.name)) {
-        foundLandmarks.add(nearbyLandmark.name);
-        const places = { ...journalRef.current.places, [level.id]: Array.from(foundLandmarks) };
-        const nextJournal = { ...journalRef.current, places };
-        journalRef.current = nextJournal;
-        setJournal(nextJournal);
-        writeJournal(nextJournal);
-        setFoundPlaces(Array.from(foundLandmarks));
-        setPlaceMessage(nearbyLandmark.name);
-        placeNotice = 210;
-      }
-      if (placeNotice > 0) {
-        placeNotice -= dt;
-        if (placeNotice <= 0) setPlaceMessage('');
-      }
-
       const nearest = algae.reduce<{ patch: Algae | null; distance: number }>((best, patch) => {
         const distance = Math.hypot(patch.x - player.x, patch.y - player.y);
         return patch.amount > 0.02 && distance < best.distance ? { patch, distance } : best;
@@ -1286,7 +1197,6 @@ export default function Home() {
       }
 
       drawEnvironment(ctx, level, time);
-      drawHiddenAreas(ctx, landmarks, foundLandmarks, time);
       algae.forEach((patch) => {
         if (patch.amount <= 0.01) return;
         ctx.fillStyle = `rgba(${level.growth}, ${0.13 + patch.amount * 0.42})`;
@@ -1347,10 +1257,8 @@ export default function Home() {
 
   const journalHabitat = LEVELS[journalPage];
   const journalCreatures = new Set(journal.creatures[journalHabitat.id] ?? []);
-  const journalPlaces = new Set(journal.places[journalHabitat.id] ?? []);
   const totalCreatureEntries = LEVELS.reduce((sum, habitat) => sum + (journal.creatures[habitat.id]?.length ?? 0), 0);
   const totalCreatureCount = LEVELS.reduce((sum, habitat) => sum + habitat.species.length, 0);
-  const totalPlaceEntries = LEVELS.reduce((sum, habitat) => sum + (journal.places[habitat.id]?.length ?? 0), 0);
 
   return (
     <main className="game-shell">
@@ -1373,7 +1281,7 @@ export default function Home() {
       <aside className="field-card" aria-live="polite">
         <span className="eyebrow">Field notes</span>
         <strong>{discovered.length}<small> / {level.species.length} friends met</small></strong>
-        <p>40 animals · {foundPlaces.length}/3 secret places{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
+        <p>40 animals · 3 depth zones{snacksShared > 0 ? ` · ${snacksShared} snacks` : ''}</p>
         <div className="species-dots" aria-label={`${discovered.length} of ${level.species.length} species discovered`}>
           {level.species.map(({ name }) => <i key={name} className={discovered.includes(name) ? 'found' : ''} title={discovered.includes(name) ? name : 'Undiscovered'} />)}
         </div>
@@ -1391,10 +1299,6 @@ export default function Home() {
 
       <div className={`creature-label ${nearbyCreature ? 'visible' : ''}`}>
         <span>friend nearby</span><strong>{nearbyCreature}</strong>
-      </div>
-
-      <div className={`place-toast ${placeMessage ? 'visible' : ''}`} role="status">
-        <span>✦ Secret place found</span><strong>{placeMessage}</strong><small>Saved to your field journal</small>
       </div>
 
       <div className={`clean-prompt ${nearAlgae ? 'visible' : ''}`}>
@@ -1454,8 +1358,6 @@ export default function Home() {
             </header>
             <div className="journal-totals">
               <p><strong>{totalCreatureEntries}</strong><span>of {totalCreatureCount}<br />creatures</span></p>
-              <i />
-              <p><strong>{totalPlaceEntries}</strong><span>of {LEVELS.length * 3}<br />secret places</span></p>
             </div>
             <nav className="journal-tabs" aria-label="Journal habitats">
               {LEVELS.map((habitat, index) => (
@@ -1465,7 +1367,7 @@ export default function Home() {
               ))}
             </nav>
             <div className="journal-page">
-              <div className="journal-page-title"><div><span>{journalHabitat.moment}</span><h3>{journalHabitat.name}</h3></div><p>{journalCreatures.size} creatures · {journalPlaces.size} places</p></div>
+              <div className="journal-page-title"><div><span>{journalHabitat.moment}</span><h3>{journalHabitat.name}</h3></div><p>{journalCreatures.size} of {journalHabitat.species.length} creatures</p></div>
               <div className="journal-columns">
                 <section>
                   <h4>Creature sightings</h4>
@@ -1477,12 +1379,9 @@ export default function Home() {
                   </ol>
                 </section>
                 <section>
-                  <h4>Hidden corners</h4>
-                  <ol className="journal-list place-list">
-                    {LANDMARK_NOTES[journalHabitat.id].map((place) => {
-                      const found = journalPlaces.has(place.name);
-                      return <li key={place.name} className={found ? 'found' : ''}><span>✦</span><div><strong>{found ? place.name : 'Unmapped place'}</strong><small>{found ? place.note : 'Look beyond the main swimming paths'}</small></div></li>;
-                    })}
+                  <h4>Habitat layers</h4>
+                  <ol className="habitat-layer-list">
+                    {journalHabitat.depthNames.map((depth, index) => <li key={depth}><span>{index + 1}</span><strong>{depth}</strong></li>)}
                   </ol>
                   <div className="personality-note"><span>Animal moods</span><p><b>Curious</b> friends come closer and may follow. <b>Playful</b> ones loop around you, while sleepy, calm, and shy neighbors keep their own pace.</p></div>
                 </section>
