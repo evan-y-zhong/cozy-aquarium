@@ -6,6 +6,7 @@ type SurfaceAttachment =
   | { surface: 'floor' }
   | { surface: 'ledge'; ledgeIndex: number }
   | { surface: 'rock'; rockIndex: number; stoneIndex: number };
+type SignatureActivity = 'none' | 'cracking-shell' | 'inspecting-brush' | 'inflated' | 'rolling';
 
 type Fish = {
   x: number;
@@ -28,6 +29,9 @@ type Fish = {
   targetVy: number;
   rare: boolean;
   attachment: SurfaceAttachment | null;
+  activity: SignatureActivity;
+  activityTimer: number;
+  activityCooldown: number;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -127,7 +131,14 @@ function placeOnAttachedSurface(animal: Fish, levelIndex: number) {
   animal.targetVy = 0;
 }
 
-type MotionContext = { time: number; dt: number; levelIndex: number };
+type MotionContext = {
+  time: number;
+  dt: number;
+  levelIndex: number;
+  playerX: number;
+  playerY: number;
+  brushing: boolean;
+};
 
 abstract class AnimalBehavior {
   readonly allowsSocialResponse: boolean = true;
@@ -252,6 +263,22 @@ class DartingBehavior extends SwimmingBehavior {
   }
 }
 
+class PufferBehavior extends DartingBehavior {
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    super.updateNaturalMotion(animal, context);
+    const playerDistance = Math.hypot(context.playerX - animal.x, context.playerY - animal.y);
+    if (animal.activity === 'none' && animal.activityCooldown <= 0 && playerDistance < 105) {
+      animal.activity = 'inflated';
+      animal.activityTimer = 105;
+      animal.activityCooldown = 720;
+    }
+    if (animal.activity === 'inflated') {
+      animal.vx *= Math.pow(0.94, context.dt);
+      animal.vy *= Math.pow(0.94, context.dt);
+    }
+  }
+}
+
 class CruisingBehavior extends SwimmingBehavior {
   constructor() {
     super({
@@ -339,6 +366,30 @@ class OtterBehavior extends SwimmingBehavior {
   protected addSpeciesMotion(animal: Fish, context: MotionContext) {
     animal.vy += Math.sin(context.time * 0.0015 + animal.phase) * 0.004 * context.dt;
   }
+
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    super.updateNaturalMotion(animal, context);
+    if (animal.kind === 'otter' && animal.activity === 'none' && animal.activityCooldown <= 0) {
+      animal.activity = 'cracking-shell';
+      animal.activityTimer = 210;
+      animal.activityCooldown = 900 + Math.random() * 720;
+    }
+    if (animal.activity === 'cracking-shell') {
+      animal.vx *= Math.pow(0.9, context.dt);
+      animal.vy *= Math.pow(0.9, context.dt);
+    }
+  }
+}
+
+class SealBehavior extends OtterBehavior {
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    super.updateNaturalMotion(animal, context);
+    if (animal.activity === 'none' && animal.activityCooldown <= 0) {
+      animal.activity = 'rolling';
+      animal.activityTimer = 180;
+      animal.activityCooldown = 1000 + Math.random() * 800;
+    }
+  }
 }
 
 class BottomWalkingBehavior extends SwimmingBehavior {
@@ -351,6 +402,21 @@ class BottomWalkingBehavior extends SwimmingBehavior {
   protected addSpeciesMotion(animal: Fish, context: MotionContext) {
     animal.vy += (animal.homeY - animal.y) * 0.018 * context.dt;
     animal.vy += Math.sin(context.time * 0.008 + animal.phase) * 0.002 * context.dt;
+  }
+
+  updateNaturalMotion(animal: Fish, context: MotionContext) {
+    super.updateNaturalMotion(animal, context);
+    if (animal.kind !== 'crab') return;
+    const playerDistance = Math.hypot(context.playerX - animal.x, context.playerY - animal.y);
+    if (context.brushing && playerDistance < 230) {
+      animal.activity = 'inspecting-brush';
+      animal.activityTimer = 36;
+      const direction = Math.sign(context.playerX - animal.x || 1);
+      animal.targetVx = playerDistance > 82 ? direction * 0.16 : 0;
+    }
+    if (animal.activity === 'inspecting-brush' && playerDistance < 82) {
+      animal.vx *= Math.pow(0.82, context.dt);
+    }
   }
 }
 
@@ -444,7 +510,7 @@ const ANIMAL_BEHAVIORS: Record<Fish['kind'], AnimalBehavior> = {
   tang: dartingBehavior,
   clown: dartingBehavior,
   butterfly: dartingBehavior,
-  puffer: dartingBehavior,
+  puffer: new PufferBehavior(),
   angelfish: dartingBehavior,
   koi: dartingBehavior,
   angler: dartingBehavior,
@@ -460,7 +526,7 @@ const ANIMAL_BEHAVIORS: Record<Fish['kind'], AnimalBehavior> = {
   crab: new BottomWalkingBehavior(),
   starfish: new StationaryBehavior(),
   octopus: new OctopusBehavior(),
-  seal: new OtterBehavior(),
+  seal: new SealBehavior(),
   shrimp: dartingBehavior,
   whale: new MajesticCruisingBehavior(),
   marlin: new FastCruisingBehavior(),
@@ -893,6 +959,13 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
   ctx.save();
   ctx.translate(fish.x, fish.y + bob);
   ctx.scale(direction, 1);
+  if (fish.kind === 'puffer' && fish.activity === 'inflated') {
+    const swell = 1.27 + Math.sin(time * 0.01 + fish.phase) * 0.035;
+    ctx.scale(swell, swell);
+  }
+  if (fish.kind === 'seal' && fish.activity === 'rolling') {
+    ctx.rotate(time * 0.012 + fish.phase);
+  }
 
   if (fish.kind === 'whale') {
     const tailSweep = Math.sin(time * 0.0035 + fish.phase) * fish.size * 0.1;
@@ -1142,6 +1215,8 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
 
   if (fish.kind === 'crab') {
     const scuttle = Math.sin(time * 0.012 + fish.phase) * fish.size * 0.08;
+    const inspecting = fish.activity === 'inspecting-brush';
+    const clawReach = inspecting ? 0.94 + Math.sin(time * 0.012) * 0.07 : 0.72;
     ctx.strokeStyle = fish.color;
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
@@ -1161,14 +1236,14 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(fish.size * 0.38, -fish.size * 0.18);
-    ctx.lineTo(fish.size * 0.72, -fish.size * 0.44);
+    ctx.lineTo(fish.size * clawReach, -fish.size * (inspecting ? 0.28 : 0.44));
     ctx.moveTo(-fish.size * 0.38, -fish.size * 0.18);
-    ctx.lineTo(-fish.size * 0.72, -fish.size * 0.44);
+    ctx.lineTo(-fish.size * (inspecting ? 0.6 : 0.72), -fish.size * (inspecting ? 0.26 : 0.44));
     ctx.stroke();
     ctx.fillStyle = fish.accent;
     ctx.beginPath();
-    ctx.arc(fish.size * 0.76, -fish.size * 0.47, fish.size * 0.16, 0, Math.PI * 2);
-    ctx.arc(-fish.size * 0.76, -fish.size * 0.47, fish.size * 0.16, 0, Math.PI * 2);
+    ctx.arc(fish.size * (clawReach + 0.04), -fish.size * (inspecting ? 0.29 : 0.47), fish.size * 0.16, 0, Math.PI * 2);
+    ctx.arc(-fish.size * (inspecting ? 0.64 : 0.76), -fish.size * (inspecting ? 0.27 : 0.47), fish.size * 0.16, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#20353c';
     ctx.beginPath();
@@ -1316,6 +1391,7 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
 
   if (fish.kind === 'otter') {
     const paddle = Math.sin(time * 0.008 + fish.phase) * 0.28;
+    const crackingShell = fish.activity === 'cracking-shell';
     ctx.rotate(Math.sin(time * 0.001 + fish.phase) * 0.06);
     ctx.fillStyle = fish.color;
     ctx.beginPath();
@@ -1349,6 +1425,32 @@ function drawFish(ctx: CanvasRenderingContext2D, fish: Fish, time: number) {
     ctx.arc(fish.size * 0.82, 0, fish.size * 0.06, 0, Math.PI * 2);
     ctx.arc(fish.size * 0.67, -fish.size * 0.08, fish.size * 0.025, 0, Math.PI * 2);
     ctx.fill();
+    if (crackingShell) {
+      const tap = Math.abs(Math.sin(time * 0.022 + fish.phase));
+      ctx.fillStyle = '#d9c59d';
+      ctx.beginPath();
+      ctx.ellipse(fish.size * 0.02, fish.size * 0.03, fish.size * 0.2, fish.size * 0.15, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#7b6854';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-fish.size * 0.04, -fish.size * 0.07);
+      ctx.lineTo(fish.size * 0.01, fish.size * 0.01);
+      ctx.lineTo(fish.size * 0.08, fish.size * 0.08);
+      ctx.stroke();
+      ctx.fillStyle = fish.color;
+      ctx.beginPath();
+      ctx.ellipse(-fish.size * 0.13, -fish.size * (0.08 + tap * 0.18), fish.size * 0.1, fish.size * 0.16, -0.5, 0, Math.PI * 2);
+      ctx.ellipse(fish.size * 0.16, -fish.size * (0.08 + (1 - tap) * 0.18), fish.size * 0.1, fish.size * 0.16, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      if (tap > 0.9) {
+        ctx.fillStyle = '#f5e6bd';
+        ctx.beginPath();
+        ctx.arc(fish.size * 0.03, -fish.size * 0.28, 2.2, 0, Math.PI * 2);
+        ctx.arc(fish.size * 0.17, -fish.size * 0.2, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     ctx.restore();
     return;
   }
@@ -2288,6 +2390,9 @@ export default function Home() {
         targetVy: ((i % 5) - 2) * 0.08,
         rare: animal.population !== undefined,
         attachment,
+        activity: 'none',
+        activityTimer: 0,
+        activityCooldown: 120 + ((i * 83) % 540),
       };
       placeOnAttachedSurface(createdAnimal, currentLevelIndex);
       return createdAnimal;
@@ -2397,11 +2502,22 @@ export default function Home() {
         if (pellet.life <= 0 || pellet.y > WORLD.height - 145) food.splice(i, 1);
       }
 
+      const brushing = !menuOpenRef.current && (keys.has(' ') || touchInput.current.cleaning);
       fish.forEach((f) => {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
+        f.activityCooldown = Math.max(0, f.activityCooldown - dt);
+        f.activityTimer = Math.max(0, f.activityTimer - dt);
+        if (f.activityTimer <= 0) f.activity = 'none';
         const behavior = ANIMAL_BEHAVIORS[f.kind];
-        const motionContext = { time, dt, levelIndex: currentLevelIndex };
+        const motionContext = {
+          time,
+          dt,
+          levelIndex: currentLevelIndex,
+          playerX: player.x,
+          playerY: player.y,
+          brushing,
+        };
         behavior.updateNaturalMotion(f, motionContext);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
@@ -2470,8 +2586,15 @@ export default function Home() {
         writeJournal(nextJournal);
         setDiscovered(Array.from(seen));
       }
+      const activityLabels: Partial<Record<SignatureActivity, string>> = {
+        'cracking-shell': 'cracking a shell',
+        'inspecting-brush': 'inspecting your brush',
+        inflated: 'puffed up',
+        rolling: 'doing a playful roll',
+      };
+      const visibleActivity = closestFish.fish ? activityLabels[closestFish.fish.activity] : undefined;
       const creatureLabel = closestFish.fish && closestFish.distance < 125
-        ? `${closestFish.fish.rare ? 'rare · ' : ''}${closestFish.fish.temperament} · ${closestFish.fish.name}`
+        ? `${closestFish.fish.rare ? 'rare · ' : ''}${closestFish.fish.temperament} · ${closestFish.fish.name}${visibleActivity ? ` · ${visibleActivity}` : ''}`
         : '';
       if (creatureLabel !== lastCreature) { lastCreature = creatureLabel; setNearbyCreature(creatureLabel); }
 
@@ -2480,7 +2603,7 @@ export default function Home() {
         return patch.amount > 0.02 && distance < best.distance ? { patch, distance } : best;
       }, { patch: null, distance: Infinity });
       const isNear = nearest.distance < 105;
-      const cleaning = !menuOpenRef.current && isNear && (keys.has(' ') || touchInput.current.cleaning);
+      const cleaning = isNear && brushing;
       if (cleaning && nearest.patch) {
         nearest.patch.amount = Math.max(0, nearest.patch.amount - 0.008 * dt);
         if (nearest.patch.amount < 0.02) nearest.patch.amount = 0;
