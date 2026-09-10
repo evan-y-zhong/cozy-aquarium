@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+type SurfaceAttachment =
+  | { surface: 'floor' }
+  | { surface: 'ledge'; ledgeIndex: number }
+  | { surface: 'rock'; rockIndex: number; stoneIndex: number };
+
 type Fish = {
   x: number;
   y: number;
@@ -22,6 +27,7 @@ type Fish = {
   targetVx: number;
   targetVy: number;
   rare: boolean;
+  attachment: SurfaceAttachment | null;
 };
 
 type Algae = { x: number; y: number; amount: number; size: number };
@@ -47,8 +53,81 @@ type JournalData = {
 const WORLD = { width: 2800, height: 2400 };
 const CURIOUS_FOLLOW_RADIUS = 170;
 const ANIMALS_PER_HABITAT = 100;
+const HABITAT_LEDGES = [
+  { x: 90, y: 780, width: 360 },
+  { x: 2160, y: 1280, width: 470 },
+  { x: 450, y: 1760, width: 420 },
+  { x: 1700, y: 2050, width: 360 },
+] as const;
+const FLOOR_ROCK_ANCHORS = [210, 980, 1390, 2600, 1540] as const;
 
-type MotionContext = { time: number; dt: number };
+function floorSurfaceY(x: number, levelIndex: number) {
+  return WORLD.height - 135 + Math.sin(x * 0.009 + levelIndex) * 28;
+}
+
+function ledgeSurfaceY(ledgeIndex: number, x: number) {
+  const ledge = HABITAT_LEDGES[ledgeIndex];
+  const progress = Math.max(0, Math.min(1, (x - ledge.x) / ledge.width));
+  return ledge.y - Math.sin(progress * Math.PI) * 30;
+}
+
+function rockBaseY(rockIndex: number, levelIndex: number) {
+  const anchorX = FLOOR_ROCK_ANCHORS[rockIndex];
+  return floorSurfaceY(anchorX + 29, levelIndex) - 3;
+}
+
+function rockSurfacePoint(rockIndex: number, stoneIndex: number, levelIndex: number) {
+  const safeStone = Math.max(0, Math.min(2, stoneIndex));
+  return {
+    x: FLOOR_ROCK_ANCHORS[rockIndex] + safeStone * 29,
+    y: rockBaseY(rockIndex, levelIndex) - safeStone * 4 - (18 + safeStone * 3),
+  };
+}
+
+function attachmentBounds(attachment: SurfaceAttachment) {
+  if (attachment.surface === 'ledge') {
+    const ledge = HABITAT_LEDGES[attachment.ledgeIndex];
+    return { min: ledge.x + 26, max: ledge.x + ledge.width - 26 };
+  }
+  if (attachment.surface === 'rock') {
+    const point = rockSurfacePoint(attachment.rockIndex, attachment.stoneIndex, 0);
+    return { min: point.x, max: point.x };
+  }
+  return { min: 75, max: WORLD.width - 75 };
+}
+
+function surfaceYFor(animal: Fish, levelIndex: number) {
+  const attachment = animal.attachment;
+  if (!attachment) return animal.y;
+  if (attachment.surface === 'ledge') return ledgeSurfaceY(attachment.ledgeIndex, animal.x);
+  if (attachment.surface === 'rock') return rockSurfacePoint(attachment.rockIndex, attachment.stoneIndex, levelIndex).y;
+  return floorSurfaceY(animal.x, levelIndex);
+}
+
+function surfaceOffsetFor(animal: Fish) {
+  const offsets: Partial<Record<Fish['kind'], number>> = {
+    urchin: 0.72,
+    starfish: 0.72,
+    crab: 0.6,
+    lobster: 0.48,
+    snail: 0.38,
+    clam: 0.52,
+    tubeworm: 0.65,
+  };
+  return animal.size * (offsets[animal.kind] ?? 0.4);
+}
+
+function placeOnAttachedSurface(animal: Fish, levelIndex: number) {
+  if (!animal.attachment) return;
+  const bounds = attachmentBounds(animal.attachment);
+  animal.x = Math.max(bounds.min, Math.min(bounds.max, animal.x));
+  animal.y = surfaceYFor(animal, levelIndex) - surfaceOffsetFor(animal);
+  animal.homeY = animal.y;
+  animal.vy = 0;
+  animal.targetVy = 0;
+}
+
+type MotionContext = { time: number; dt: number; levelIndex: number };
 
 abstract class AnimalBehavior {
   readonly allowsSocialResponse: boolean = true;
@@ -71,6 +150,17 @@ abstract class AnimalBehavior {
     animal.vy = Math.max(-speedLimit, Math.min(speedLimit, animal.vy));
     animal.vy *= Math.pow(this.getVerticalDamping(), context.dt);
     animal.x += animal.vx * context.dt;
+
+    if (animal.attachment) {
+      const bounds = attachmentBounds(animal.attachment);
+      if (animal.x <= bounds.min || animal.x >= bounds.max) {
+        animal.vx *= -1;
+        animal.targetVx *= -1;
+      }
+      placeOnAttachedSurface(animal, context.levelIndex);
+      return;
+    }
+
     animal.y += animal.vy * context.dt;
 
     if (animal.x < 80 || animal.x > WORLD.width - 80) {
@@ -342,7 +432,9 @@ class StationaryBehavior extends AnimalBehavior {
     animal.vy = 0;
   }
 
-  move() {}
+  move(animal: Fish, context: MotionContext) {
+    placeOnAttachedSurface(animal, context.levelIndex);
+  }
 }
 
 const dartingBehavior = new DartingBehavior();
@@ -1759,27 +1851,26 @@ function drawBackgroundFormations(ctx: CanvasRenderingContext2D, level: Level, t
 
 function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: number) {
   const floorY = WORLD.height - 135;
+  const levelIndex = LEVELS.indexOf(level);
   ctx.fillStyle = level.floor;
   ctx.beginPath();
-  ctx.moveTo(0, floorY);
-  for (let x = 0; x <= WORLD.width; x += 90) {
-    ctx.lineTo(x, floorY + Math.sin(x * 0.009 + LEVELS.indexOf(level)) * 28);
+  ctx.moveTo(0, floorSurfaceY(0, levelIndex));
+  for (let x = 0; x <= WORLD.width; x += 20) {
+    ctx.lineTo(x, floorSurfaceY(x, levelIndex));
   }
   ctx.lineTo(WORLD.width, WORLD.height);
   ctx.lineTo(0, WORLD.height);
   ctx.fill();
 
-  const ledges = [
-    { x: 90, y: 780, width: 360 },
-    { x: 2160, y: 1280, width: 470 },
-    { x: 450, y: 1760, width: 420 },
-    { x: 1700, y: 2050, width: 360 },
-  ];
-  ledges.forEach((ledge, index) => {
+  HABITAT_LEDGES.forEach((ledge, index) => {
     ctx.fillStyle = index % 2 ? `${level.floor}dd` : `${level.floor}ee`;
     ctx.beginPath();
     ctx.moveTo(ledge.x, ledge.y);
-    ctx.quadraticCurveTo(ledge.x + ledge.width * 0.45, ledge.y - 30, ledge.x + ledge.width, ledge.y);
+    for (let offset = 0; offset <= ledge.width; offset += 12) {
+      const x = Math.min(ledge.x + offset, ledge.x + ledge.width);
+      ctx.lineTo(x, ledgeSurfaceY(index, x));
+    }
+    ctx.lineTo(ledge.x + ledge.width, ledge.y);
     ctx.lineTo(ledge.x + ledge.width - 55, ledge.y + 72);
     ctx.lineTo(ledge.x + 35, ledge.y + 58);
     ctx.closePath();
@@ -1787,9 +1878,11 @@ function drawEnvironment(ctx: CanvasRenderingContext2D, level: Level, time: numb
   });
 
   const rockBeds = [
-    { x: 210, y: floorY - 8 }, { x: 560, y: 778 }, { x: 980, y: floorY + 3 },
-    { x: 1390, y: floorY - 5 }, { x: 1800, y: 2048 }, { x: 2220, y: 1278 },
-    { x: 2600, y: floorY - 2 }, { x: 720, y: 1758 }, { x: 1540, y: floorY + 5 },
+    ...FLOOR_ROCK_ANCHORS.map((x, rockIndex) => ({ x, y: rockBaseY(rockIndex, levelIndex) })),
+    { x: 560, y: ledgeSurfaceY(2, 560) },
+    { x: 1800, y: ledgeSurfaceY(3, 1800) },
+    { x: 2220, y: ledgeSurfaceY(1, 2220) },
+    { x: 720, y: ledgeSurfaceY(2, 720) },
   ];
   rockBeds.forEach(({ x, y }, index) => {
     ctx.fillStyle = index % 2 ? `${level.floor}f2` : `${level.floor}cc`;
@@ -2146,33 +2239,40 @@ export default function Home() {
     });
     let commonAnimalIndex = 0;
     const personalities: Fish['temperament'][] = ['curious', 'calm', 'playful', 'shy', 'sleepy', 'calm'];
-    const benthicPerches = [
-      { x: 520, y: 720 },
-      { x: 2220, y: 1260 },
-      { x: 760, y: 1715 },
-      { x: 1810, y: 2040 },
-      { x: 2520, y: WORLD.height - 175 },
-      { x: 1180, y: 835 },
-      { x: 1540, y: 1390 },
-      { x: 360, y: 1980 },
-      { x: 1320, y: WORLD.height - 180 },
-      { x: 2300, y: 1870 },
-    ];
+    const currentLevelIndex = LEVELS.indexOf(level);
     const fish: Fish[] = Array.from({ length: ANIMALS_PER_HABITAT }, (_, i) => {
       const animal = rareSlots.get(i) ?? commonSpecies[commonAnimalIndex++ % commonSpecies.length];
       const isBenthic = ['urchin', 'starfish', 'crab', 'lobster', 'snail', 'clam', 'tubeworm'].includes(animal.kind);
       const isStationary = ['urchin', 'starfish', 'clam', 'tubeworm'].includes(animal.kind);
       const isPenguin = animal.kind === 'penguin';
-      const perch = benthicPerches[i % benthicPerches.length];
       const largeAnimal = ['ray', 'shark', 'otter', 'penguin', 'turtle', 'octopus', 'seal', 'whale', 'marlin', 'dolphin'].includes(animal.kind)
         || (animal.kind === 'crab' && (animal.scale ?? 1) >= 1.5);
       const smallAnimal = animal.kind === 'shrimp';
-      return {
-        x: isBenthic ? perch.x + ((i * 41) % 90) - 45 : 180 + ((i * 347) % 2450),
-        y: isBenthic ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+      const size = (largeAnimal ? 42 + (i % 3) * 6 : isBenthic ? 26 + (i % 3) * 3 : smallAnimal ? 17 + (i % 3) * 2 : 20 + (i % 5) * 3.5) * (animal.scale ?? 1);
+      let attachment: SurfaceAttachment | null = null;
+      if (isStationary && i % 2 === 0) {
+        attachment = { surface: 'rock', rockIndex: i % FLOOR_ROCK_ANCHORS.length, stoneIndex: i % 3 };
+      } else if (isBenthic && i % 3 !== 0) {
+        attachment = { surface: 'ledge', ledgeIndex: i % HABITAT_LEDGES.length };
+      } else if (isBenthic) {
+        attachment = { surface: 'floor' };
+      }
+
+      let x = 180 + ((i * 347) % 2450);
+      if (attachment?.surface === 'ledge') {
+        const ledge = HABITAT_LEDGES[attachment.ledgeIndex];
+        x = ledge.x + 32 + ((i * 41) % (ledge.width - 64));
+      } else if (attachment?.surface === 'rock') {
+        x = rockSurfacePoint(attachment.rockIndex, attachment.stoneIndex, currentLevelIndex).x;
+      }
+
+      const swimmingY = isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390);
+      const createdAnimal: Fish = {
+        x,
+        y: swimmingY,
         vx: isStationary ? 0 : (i % 2 ? -1 : 1) * (0.28 + (i % 4) * 0.07),
         vy: 0,
-        size: (largeAnimal ? 42 + (i % 3) * 6 : isBenthic ? 26 + (i % 3) * 3 : smallAnimal ? 17 + (i % 3) * 2 : 20 + (i % 5) * 3.5) * (animal.scale ?? 1),
+        size,
         color: animal.color,
         accent: animal.accent,
         kind: animal.kind,
@@ -2182,12 +2282,15 @@ export default function Home() {
         happy: 0,
         biteCooldown: 0,
         diveClock: (i * 0.17) % 1,
-        homeY: isBenthic ? perch.y : isPenguin ? 145 + (i % 3) * 28 : 260 + (i % 3) * 650 + ((i * 173) % 390),
+        homeY: swimmingY,
         turnTimer: 35 + ((i * 47) % 130),
         targetVx: (i % 2 ? -1 : 1) * (0.3 + (i % 4) * 0.08),
         targetVy: ((i % 5) - 2) * 0.08,
         rare: animal.population !== undefined,
+        attachment,
       };
+      placeOnAttachedSurface(createdAnimal, currentLevelIndex);
+      return createdAnimal;
     });
     const algae: Algae[] = [
       { x: 620, y: 430, size: 58, amount: 1 },
@@ -2298,7 +2401,7 @@ export default function Home() {
         f.happy = Math.max(0, f.happy - dt);
         f.biteCooldown = Math.max(0, f.biteCooldown - dt);
         const behavior = ANIMAL_BEHAVIORS[f.kind];
-        const motionContext = { time, dt };
+        const motionContext = { time, dt, levelIndex: currentLevelIndex };
         behavior.updateNaturalMotion(f, motionContext);
         const dx = f.x - player.x;
         const dy = f.y - player.y;
